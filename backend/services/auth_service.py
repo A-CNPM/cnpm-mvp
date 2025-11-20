@@ -1,21 +1,6 @@
 from schemas.user import UserInDB
 from typing import Optional
-
-# Hardcoded user data
-fake_users_db = {
-    "a.nguyen": {
-        "username": "a.nguyen",
-        "full_name": "Nguyen Van A",
-        "role": "Mentee",
-        "password": "123456"
-    },
-    "b.levan": {
-        "username": "b.levan",
-        "full_name": "Bob Builder",
-        "role": "Mentee",
-        "password": "123456"
-    }
-}
+from data.users import fake_users_db
 
 def get_user(username: str):
     return fake_users_db.get(username)
