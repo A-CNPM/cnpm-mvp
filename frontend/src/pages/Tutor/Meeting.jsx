@@ -3,6 +3,7 @@ import { useState } from "react";
 import "../../assets/css/style.css";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import TutorSidebar from "../../components/TutorSidebar";
 
 const meetings = [
   {
@@ -69,34 +70,7 @@ function Meeting() {
   return (
     <>
       <div className="tutor-dashboard">
-        <aside className={`sidebar${showCreateModal || showEditModal ? " blur-bg" : ""}`}>
-          <div className="sidebar-menu">
-            <div className="sidebar-item">
-              <span className="sidebar-icon"><FaHome style={{color: "#6366f1", fontSize: 20}} /></span>
-              Tổng quan
-            </div>
-            <div className="sidebar-item active">
-              <span className="sidebar-icon"><FaCalendarAlt style={{color: "#6366f1", fontSize: 20}} /></span>
-              Buổi tư vấn
-            </div>
-            <div className="sidebar-item">
-              <span className="sidebar-icon"><FaListUl style={{color: "#6366f1", fontSize: 20}} /></span>
-              Sinh viên
-            </div>
-            <div className="sidebar-item">
-              <span className="sidebar-icon"><FaChartBar style={{color: "#6366f1", fontSize: 20}} /></span>
-              Quá trình
-            </div>
-            <div className="sidebar-item">
-              <span className="sidebar-icon"><FaEdit style={{color: "#6366f1", fontSize: 20}} /></span>
-              Phản hồi
-            </div>
-            <div className="sidebar-item">
-              <span className="sidebar-icon"><FaCalendar style={{color: "#6366f1", fontSize: 20}} /></span>
-              Lịch
-            </div>
-          </div>
-        </aside>
+        <TutorSidebar activeItem="meeting" blur={showCreateModal || showEditModal} />
         <main className={`main-content${showCreateModal || showEditModal ? " blur-bg" : ""}`}>
           <div className="tutor-header">
             <h1 className="tutor-title">Tutor.</h1>

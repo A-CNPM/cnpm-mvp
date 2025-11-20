@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import "../../assets/css/style.css";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import MenteeSidebar from "../../components/MenteeSidebar";
 
 const meetings = [
   {
@@ -58,30 +59,7 @@ function Meeting() {
   return (
     <>
       <div className="mentee-dashboard">
-        <aside className="sidebar">
-          <div className="sidebar-menu">
-            <div className="sidebar-item">
-              <span className="sidebar-icon"><FaHome style={{color: "#6366f1", fontSize: 20}} /></span>
-              Tổng quan
-            </div>
-            <div className="sidebar-item active">
-              <span className="sidebar-icon"><FaCalendarAlt style={{color: "#6366f1", fontSize: 20}} /></span>
-              Buổi tư vấn
-            </div>
-            <div className="sidebar-item">
-              <span className="sidebar-icon"><FaUser style={{color: "#6366f1", fontSize: 20}} /></span>
-              <span className="sidebar-text">Tìm kiếm Tutor</span>
-            </div>
-            <div className="sidebar-item">
-              <span className="sidebar-icon"><FaChartBar style={{color: "#6366f1", fontSize: 20}} /></span>
-              Đánh giá
-            </div>
-            <div className="sidebar-item">
-              <span className="sidebar-icon"><FaEdit style={{color: "#6366f1", fontSize: 20}} /></span>
-              Đăng kí làm Tutor
-            </div>
-          </div>
-        </aside>
+        <MenteeSidebar activeItem="meeting" />
         <main className="main-content">
           <div className="mentee-header">
             <h1 className="mentee-title">Mentee</h1>
