@@ -4,6 +4,8 @@ import { FaGlobe, FaBell, FaUser, FaChevronDown } from "react-icons/fa";
 import logo from "../assets/images/HCMUT_logo.png";
 import "../assets/css/style.css";
 
+import { logout as logoutApi } from "../api/auth";
+
 function Header({ role }) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef();
@@ -25,6 +27,20 @@ function Header({ role }) {
       navigate(`/tutor/id=${userId}`);
     } else {
       navigate(`/mentee/id=${userId}`);
+    }
+    setShowMenu(false);
+  };
+
+  const handleLogout = async () => {
+    try {
+      const username = localStorage.getItem("username"); // hoặc lấy từ context/store
+      await logoutApi(username);
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("role");
+      localStorage.removeItem("username");
+      navigate("/login");
+    } catch (err) {
+      alert("Logout thất bại");
     }
     setShowMenu(false);
   };
@@ -59,7 +75,7 @@ function Header({ role }) {
               <div className="dropdown-item">Lịch</div>
               <div className="dropdown-item">Báo cáo</div>
               <div className="dropdown-item">Tùy chọn</div>
-              <div className="dropdown-item logout">Đăng xuất</div>
+              <div className="dropdown-item logout" onClick={handleLogout}>Đăng xuất</div>
             </div>
           )}
         </span>

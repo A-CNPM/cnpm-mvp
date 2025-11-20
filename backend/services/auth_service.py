@@ -30,3 +30,17 @@ def authenticate_user(username: str, password: str):
     if not verify_password(password, user["password"]):
         return None
     return user
+
+def get_user_by_full_name(full_name: str):
+    for user in fake_users_db.values():
+        if user["full_name"] == full_name:
+            return user
+    return None
+
+def authenticate_user_by_full_name(full_name: str, password: str):
+    user = get_user_by_full_name(full_name)
+    if not user:
+        return None
+    if not verify_password(password, user["password"]):
+        return None
+    return user
