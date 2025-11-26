@@ -2,40 +2,40 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 class SessionResource(BaseModel):
-    id: str
+    resourceID: str
+    session: str  # sessionID reference
+    title: str
+    description: Optional[str] = None
+    type: str  # Document, Video, Link, etc.
     url: str
-    name: str
+    uploadedBy: str  # tutorID (userID từ profile)
+    accessLevel: str  # Public, Private, Restricted
+    uploadDate: str
 
 class Session(BaseModel):
     sessionID: str
+    tutor: str  # userID reference từ Profile
+    participants: List[str] = []  # list of userIDs từ Profile
     topic: str
-    time: str
-    created_date: str
-    mode: str
-    student_count: int
-    location: str
-    status: str
+    mode: str  # Online/Offline
+    status: str  # Khởi tạo, Đã xác nhận, Đã hoàn thành, Đã huỷ, etc.
+    startTime: str  # ISO format datetime string
+    endTime: str
+    maxParticipants: int
     resources: List[SessionResource] = []
-    content: Optional[str] = None
-    tutorID: str
-    menteeIDs: List[str] = []
 
 class CreateSession(BaseModel):
+    tutor: str  # userID từ Profile
     topic: str
-    time: str
-    created_date: str
-    mode: str
-    student_count: int
-    location: str
-    tutorID: str
-    content: Optional[str] = None
+    mode: str  # Online/Offline
+    startTime: str
+    endTime: str
+    maxParticipants: int
 
 class UpdateSession(BaseModel):
     topic: Optional[str] = None
-    time: Optional[str] = None
     mode: Optional[str] = None
-    student_count: Optional[int] = None
-    location: Optional[str] = None
+    startTime: Optional[str] = None
+    endTime: Optional[str] = None
+    maxParticipants: Optional[int] = None
     status: Optional[str] = None
-    content: Optional[str] = None
-    resources: Optional[List[SessionResource]] = None
