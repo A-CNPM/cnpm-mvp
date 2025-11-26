@@ -10,5 +10,5 @@ fake_users_db = {
         "full_name": "Bob Builder",
         "role": "Mentee",
         "password": "123456"
-    }
+    },
 }
