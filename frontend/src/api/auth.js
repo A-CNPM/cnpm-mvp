@@ -1,10 +1,10 @@
 const BASE_URL = 'http://localhost:8000';
 
-export async function login(full_name, password, role) {
+export async function login(username, password, role) {
   const response = await fetch(`${BASE_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ full_name, password, role })
+    body: JSON.stringify({ username, password, role })
   });
   if (!response.ok) throw new Error('Login failed');
   return await response.json();

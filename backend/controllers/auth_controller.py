@@ -1,10 +1,10 @@
 from typing import Optional
-from services.auth_service import get_user_by_full_name, verify_password
+from services.auth_service import get_user, verify_password
 from core.security import create_access_token
 
 class AuthController:
-    def login(self, full_name: str, password: str, role: str) -> Optional[dict]:
-        user = get_user_by_full_name(full_name)
+    def login(self, username: str, password: str, role: str) -> Optional[dict]:
+        user = get_user(username)
         if not user or user.get("role") != role:
             return None
         if not verify_password(password, user["password"]):

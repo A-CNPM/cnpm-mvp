@@ -8,7 +8,7 @@ class UserInDB(User):
     pass
 
 class LoginRequest(BaseModel):
-    full_name: str
+    username: str
     password: str
     role: str
 

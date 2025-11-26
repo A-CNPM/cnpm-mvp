@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { login as loginApi } from "../api/auth";
 
 function Login() {
-  const [fullName, setFullname] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("Mentee");
   const [message, setMessage] = useState("");
@@ -16,7 +16,7 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const data = await loginApi(fullName, password, role);
+      const data = await loginApi(username, password, role);
       localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("role", data.role);
       localStorage.setItem("username", data.username);
@@ -47,14 +47,14 @@ function Login() {
           <option value="Mentee">Mentee</option>
           <option value="Tutor">Tutor</option>
         </select>
-        <label className="login-label" htmlFor="full_name">Tên đăng nhập</label>
+        <label className="login-label" htmlFor="username">Tên đăng nhập</label>
         <input
           className="login-input"
           type="text"
-          id="full_name"
-          name="full_name"
-          value={fullName}
-          onChange={e => setFullname(e.target.value)}
+          id="username"
+          name="username"
+          value={username}
+          onChange={e => setUsername(e.target.value)}
         />
         <label className="login-label" htmlFor="password">Mật khẩu</label>
         <input
