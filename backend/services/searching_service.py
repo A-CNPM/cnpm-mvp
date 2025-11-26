@@ -52,6 +52,21 @@ class SearchingService:
             # 3. Lọc theo Status
             if criteria.status and s.get("status") != criteria.status:
                 continue
+
+            if criteria.tutor_name:
+                # Lấy ID tutor của buổi session này
+                session_tutor_id = s.get("tutor") 
+                
+                # Tra cứu thông tin Tutor trong DB Tutor
+                tutor_info = fake_tutors_db.get(session_tutor_id)
+                
+                # Nếu không tìm thấy tutor hoặc tên không khớp -> Bỏ qua
+                if not tutor_info:
+                    continue
+                
+                # So sánh tên (chuyển về chữ thường để so sánh chính xác)
+                if criteria.tutor_name.lower() not in tutor_info["full_name"].lower():
+                    continue
                 
             results.append(Session(**s))
             
