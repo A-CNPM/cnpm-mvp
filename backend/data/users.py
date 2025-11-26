@@ -10,5 +10,11 @@ fake_users_db = {
         "full_name": "Bob Builder",
         "role": "Mentee",
         "password": "123456"
+    },
+    "a.nguyen": {
+        "username": "a.nguyen",
+        "full_name": "Nguyen Van A",
+        "role": "Tutor",
+        "password": "123456"
     }
 }

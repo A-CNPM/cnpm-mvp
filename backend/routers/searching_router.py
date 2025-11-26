@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, status
 from controllers.searching_controller import SearchingController
-from schemas.searching import SearchCriteria, Tutor, SuggestedTutor
+from schemas.searching import *
 from typing import List, Dict
+from schemas.session import Session
 
 router = APIRouter(prefix="/searching", tags=["searching"])
 searching_controller = SearchingController()
@@ -9,6 +10,13 @@ searching_controller = SearchingController()
 @router.post("/tutor", response_model=List[Tutor])
 def search_tutor(criteria: SearchCriteria):
     return searching_controller.search_tutor(criteria)
+
+@router.post("/session", response_model=List[Session])
+def search_session(criteria: SessionSearchCriteria):
+    """
+    Tìm kiếm buổi tư vấn theo chủ đề, hình thức, gia sư, thời gian...
+    """
+    return searching_controller.search_session(criteria)
 
 @router.get("/tutor/{tutor_id}", response_model=Tutor)
 def get_tutor_detail(tutor_id: str):

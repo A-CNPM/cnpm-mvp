@@ -1,6 +1,7 @@
 from typing import List, Optional, Dict
 from services.searching_service import SearchingService
-from schemas.searching import SearchCriteria, Tutor, SuggestedTutor
+from schemas.searching import *
+from schemas.session import Session
 
 class SearchingController:
     def __init__(self):
@@ -8,6 +9,9 @@ class SearchingController:
 
     def search_tutor(self, criteria: SearchCriteria) -> List[Tutor]:
         return self.service.search_tutor(criteria)
+    
+    def search_session(self, criteria: SessionSearchCriteria) -> List[Session]:
+        return self.service.search_session(criteria)
 
     def get_tutor_detail(self, tutor_id: str) -> Optional[Tutor]:
         return self.service.get_tutor_detail(tutor_id)
@@ -17,3 +21,4 @@ class SearchingController:
 
     def get_suggested_tutors(self, mentee_id: str, criteria: SearchCriteria) -> List[SuggestedTutor]:
         return self.service.get_suggested_tutors(mentee_id, criteria)
+

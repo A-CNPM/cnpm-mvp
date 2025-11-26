@@ -20,3 +20,11 @@ class Tutor(BaseModel):
 class SuggestedTutor(BaseModel):
     tutorID: str
     score: float
+
+class SessionSearchCriteria(BaseModel):
+    keyword: Optional[str] = None        # Tìm theo topic hoặc content
+    mode: Optional[str] = None           # Online/Offline
+    date_from: Optional[str] = None      # Tìm từ ngày...
+    date_to: Optional[str] = None        # ...đến ngày
+    tutor_name: Optional[str] = None     # Tìm theo tên gia sư
+    status: Optional[str] = None         # Khởi tạo, Đã kết thúc...
