@@ -1,18 +1,30 @@
 import "../assets/css/style.css";
-import Header from "../components/Header";
-import Footer from "../components/Footer";
+import { useNavigate } from "react-router-dom";
+import HCMUTLogo from "../assets/images/HCMUT_logo.png";
+import HomePageBg from "../assets/images/HomePage.png";
 
 function HomePage() {
+  const navigate = useNavigate();
+
   return (
-    <div className="homepage-bg">
-      <div className="intro">
-        <h1 className="title">HCMUT Tutor Support System</h1>
-        <p className="describe">
-          Hệ thống thông minh được thiết kế và vận hành chương trình Tutor - Mentor dành cho 
-          sinh viên Trường Đại học Bách Khoa. Hệ thống tạo môi trường kết nối và tối ưu hóa hoạt 
-          động hỗ trợ học tập giữa sinh viên và nhà trường.
-        </p>
-        <a href="/login" className="login-button">Đăng nhập</a>
+    <div className="homepage-container">
+      <div className="homepage-bg" style={{ backgroundImage: `url(${HomePageBg})` }}>
+        <div className="homepage-content">
+          {/* Logo ở góc trên trái */}
+
+
+          {/* Nội dung chính bên trái */}
+          <div className="homepage-left">
+            <button 
+              className="homepage-login-btn"
+              onClick={() => navigate("/login")}
+            >
+              Login with HCMUT_SSO
+            </button>
+          </div>
+
+          {/* Nhân vật hoạt hình bên phải (đã có trong background image) */}
+        </div>
       </div>
     </div>
   );

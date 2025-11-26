@@ -173,51 +173,94 @@ body, .Page {
 /* End Footer */
 
 /* Home Page */
+.homepage-container {
+  width: 100vw;
+  min-height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
 .homepage-bg {
-  background-image: url('../images/background.png');
-  background-size: cover;
+  width: 100%;
+  min-height: 100vh;
+  background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
-  width: 100%;            /* Sửa lại từ 100vw thành 100% */
-  min-height: 100vh;      /* Đảm bảo chiều cao đủ */
-  padding: 20px;
-  box-sizing: border-box; /* Đã có ở đầu file, không cần thêm lại */
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #1e3a8a; /* Màu nền xanh đậm để lấp khoảng trống nếu ảnh nhỏ hơn */
 }
 
-.intro {
-  background-color: #D9D9D9;
-  max-width: 675px;
+.homepage-content {
   width: 100%;
-  margin: 30px;
-  padding: 40px;
-  border-radius: 16px;
-  box-sizing: border-box;
+  max-width: 1400px;
+  padding: 40px 60px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-height: 100vh;
 }
 
-.intro .title {
-  color: #470284;
-  font-size: 36px;
+.homepage-logo {
+  position: absolute;
+  top: 40px;
+  left: 60px;
+  z-index: 10;
+}
+
+.homepage-logo img {
+  max-height: 80px;
+  width: auto;
+}
+
+.homepage-left {
+  position: absolute;
+  top: 50%;
+  left: 60px;
+  transform: translateY(-50%);
+  z-index: 10;
+  max-width: 500px;
+}
+
+.homepage-welcome {
+  color: #ffffff;
+  font-size: 48px;
   font-weight: bold;
+  margin: 0 0 20px 0;
+  line-height: 1.2;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-.intro .describe {
-  font-size: 16px;
-  font-weight: 500;
-  margin-bottom: 30px;
+.homepage-subtitle {
+  color: #b0b0b0;
+  font-size: 18px;
+  margin: 0 0 40px 0;
+  line-height: 1.5;
 }
 
-.login-button {
-  padding: 15px;
-  border-radius: 8px;
-  background: #2563eb;
-  color: #fff;
-  font-weight: bold;
-  text-decoration: none;
-  transition: background 0.2s;
+.homepage-login-btn {
+  background: #6b46c1;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 16px 40px;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(107, 70, 193, 0.4);
 }
 
-.login-button:hover {
-  background: #1e40af;
+.homepage-login-btn:hover {
+  background: #7c3aed;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(107, 70, 193, 0.5);
+}
+
+.homepage-login-btn:active {
+  transform: translateY(0);
 }
 /* End Home Page */
 
