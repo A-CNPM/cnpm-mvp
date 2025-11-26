@@ -1,6 +1,8 @@
 from typing import List, Optional, Dict
 from data.fake_tutors import fake_tutors_db
-from schemas.searching import SearchCriteria, Tutor, SuggestedTutor
+from schemas.searching import *
+from data.fake_sessions import fake_sessions_db
+from schemas.session import Session
 
 class AIMatching:
     @staticmethod
@@ -19,16 +21,41 @@ class SearchingService:
     def search_tutor(self, criteria: SearchCriteria) -> List[Tutor]:
         result = []
         for t in fake_tutors_db.values():
-            if criteria.keyword and criteria.keyword.lower() not in t["full_name"].lower():
-                continue
-            if criteria.tags and not set(criteria.tags).intersection(set(t["tags"])):
-                continue
-            if criteria.min_rating and t["rating"] < criteria.min_rating:
-                continue
-            if criteria.major and criteria.major != t["major"]:
+            tutor_name = t["full_name"].lower()
+            tutor_major = t["major"].lower()
+            tutor_tag = list(map(str.lower, t["tags"]))
+            if criteria.keyword and not (criteria.keyword.lower() in tutor_name or
+                                     criteria.keyword.lower() in tutor_major or
+                                     criteria.keyword.lower() in tutor_tag):
                 continue
             result.append(Tutor(**t))
         return result
+    
+    def search_session(self, criteria: SessionSearchCriteria) -> List[Session]:
+        results = []
+        for s in fake_sessions_db.values():
+            # 1. Lọc theo Keyword (Topic hoặc Content)
+            if criteria.keyword:
+                keyword = criteria.keyword.lower()
+                topic = s.get("topic", "").lower()
+                content = s.get("content", "").lower()
+                tutor_id = s.get("tutor")
+                tutor_info = fake_tutors_db.get(tutor_id)
+                invalid_tutor = not tutor_info or criteria.keyword.lower() not in tutor_info["full_name"].lower()
+                if keyword not in topic and keyword not in content and invalid_tutor and invalid_tutor:
+                    continue
+            
+            # 2. Lọc theo Mode (Online/Offline)
+            if criteria.mode and s.get("mode") != criteria.mode:
+                continue
+
+            # 3. Lọc theo Status
+            if criteria.status and s.get("status") != criteria.status:
+                continue
+                
+            results.append(Session(**s))
+            
+        return results
 
     def get_tutor_detail(self, tutor_id: str) -> Optional[Tutor]:
         t = fake_tutors_db.get(tutor_id)

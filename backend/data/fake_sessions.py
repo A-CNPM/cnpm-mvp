@@ -5,9 +5,9 @@ fake_sessions_db = {
         "participants": ["b.levan", "c.tran"],
         "topic": "Chủ đề sinh viên - Kỹ thuật học tập hiệu quả",
         "mode": "Online",
-        "status": "Đã xác nhận",
-        "startTime": "2025-01-11T12:00:00",
-        "endTime": "2025-01-11T14:00:00",
+        "status": "Sắp diễn ra",
+        "startTime": "01/11/2025 12:00",
+        "endTime": "01/11/2025 14:00",
         "maxParticipants": 10,
         "resources": [
             {
@@ -21,7 +21,9 @@ fake_sessions_db = {
                 "accessLevel": "Public",
                 "uploadDate": "2025-01-10T10:00:00"
             }
-        ]
+        ],
+        "location": "www.meet.google.com/123-456-789",
+        "content": "Nội dung buổi tư vấn",
     },
     "S002": {
         "sessionID": "S002", 
@@ -29,10 +31,12 @@ fake_sessions_db = {
         "participants": [],
         "topic": "Lập trình Python cơ bản",
         "mode": "Offline",
-        "status": "Khởi tạo",
-        "startTime": "2025-01-15T09:00:00",
-        "endTime": "2025-01-15T11:00:00",
+        "status": "Đã hủy",
+        "startTime": "15/01/2025 09:00",
+        "endTime": "15/01/2025 11:00",
         "maxParticipants": 8,
-        "resources": []
+        "resources": [],
+        "location": "www.meet.google.com/123-456-789",
+        "content": "Nội dung buổi tư vấn",
     }
 }

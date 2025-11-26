@@ -23,6 +23,10 @@ class Session(BaseModel):
     endTime: str
     maxParticipants: int
     resources: List[SessionResource] = []
+    location: str
+    content: Optional[str] = None
+    
+    
 
 class CreateSession(BaseModel):
     tutor: str  # userID từ Profile
