@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import "../../assets/css/style.css";
 import MenteeSidebar from "../../components/MenteeSidebar";
 import SearchService from "../../api/search";
+import SessionService from "../../api/session";
 
 function FindTutor() {
   // --- STATE DỮ LIỆU ---
@@ -18,7 +19,39 @@ function FindTutor() {
   
   // State Filter cho Modal Lịch Dạy (MỚI)
   const [scheduleMode, setScheduleMode] = useState("");   // "Online" / "Offline"
-  const [scheduleStatus, setScheduleStatus] = useState(""); // "Sắp diễn ra", ...
+
+  // --- STATE ĐĂNG KÝ SESSION ---
+  const [registeringSession, setRegisteringSession] = useState(null); // ID session đang đăng ký
+  
+  // Hàm kiểm tra mentee đã đăng ký session chưa
+  const isRegisteredForSession = (session) => {
+    const menteeId = "c.tran";
+    return session.participants && session.participants.includes(menteeId);
+  };
+
+  // Hàm format thời gian session
+  const formatSessionTime = (session) => {
+    if (session.startTime && session.endTime) {
+      return `${session.startTime} - ${session.endTime.split(' ')[1]}`;
+    }
+    return session.time || "Chưa xác định";
+  };
+
+  // --- HÀM HELPER: MÀU SẮC TRẠNG THÁI ---
+  const getStatusStyles = (status) => {
+    switch (status) {
+      case "Hoàn thành":
+        return { color: "#2dd4bf", bg: "#e6fcf7" }; // Xanh ngọc
+      case "Đã hủy":
+        return { color: "#f87171", bg: "#fff1f2" }; // Đỏ
+      case "Sắp diễn ra":
+        return { color: "#f59e0b", bg: "#fef3c7" }; // Màu cam vàng
+      case "Đang mở đăng ký":
+        return { color: "#a78bfa", bg: "#f3f0ff" }; // Tím
+      default:
+        return { color: "#64748b", bg: "#f1f5f9" }; // Xám
+    }
+  };
 
   // --- STATE MODAL XEM PROFILE ---
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -48,9 +81,9 @@ function FindTutor() {
         const criteria = { 
             tutor_name: currentTutorName,
             mode: scheduleMode || null,
-            status: scheduleStatus || null
+            status: "Đang mở đăng ký" // Luôn chỉ hiển thị "Đang mở đăng ký"
         };
-        const data = await SearchService.searchSessions(criteria);
+        const data = await SessionService.searchSessions(criteria);
         setTutorSessions(data);
       } catch (error) {
         console.error("Lỗi lấy lịch dạy:", error);
@@ -60,14 +93,13 @@ function FindTutor() {
     };
 
     fetchTutorSchedule();
-  }, [showScheduleModal, currentTutorName, scheduleMode, scheduleStatus]);
+  }, [showScheduleModal, currentTutorName, scheduleMode]); // Bỏ scheduleStatus khỏi dependency
 
   // --- HANDLER: Mở Modal Xem lịch dạy ---
   const handleViewSchedule = (tutor) => {
     setCurrentTutorName(tutor.full_name);
     // Reset bộ lọc về mặc định mỗi khi mở modal mới
     setScheduleMode("");
-    setScheduleStatus("");
     setTutorSessions([]); // Xóa dữ liệu cũ
     setShowScheduleModal(true);
     // (useEffect phía trên sẽ tự chạy để load dữ liệu)
@@ -79,6 +111,48 @@ function FindTutor() {
     setShowProfileModal(true);
   };
 
+  // --- HANDLER: Đăng ký Session ---
+  const handleRegisterSession = async (sessionID) => {
+    setRegisteringSession(sessionID);
+    try {
+      // Gọi API đăng ký session thực (sử dụng c.tran làm mentee)
+      const result = await SessionService.registerSession(sessionID, "c.tran");
+      
+      if (result.success) {
+        alert(`Đăng ký thành công buổi tư vấn "${result.session.topic}"!`);
+        
+        // Refresh danh sách sessions để cập nhật số lượng participants
+        const criteria = { 
+            tutor_name: currentTutorName,
+            mode: scheduleMode || null,
+            status: "Đang mở đăng ký"
+        };
+        const data = await SessionService.searchSessions(criteria);
+        setTutorSessions(data);
+      } else {
+        alert(result.message || "Đăng ký thất bại!");
+      }
+      
+    } catch (error) {
+      console.error("Lỗi đăng ký session:", error);
+      
+      // Xử lý các loại lỗi khác nhau
+      let errorMessage = "Đăng ký thất bại. Vui lòng thử lại!";
+      
+      if (error.message.includes("full") || error.message.includes("đầy")) {
+        errorMessage = "Buổi tư vấn đã đầy. Vui lòng chọn buổi khác!";
+      } else if (error.message.includes("registered") || error.message.includes("đăng ký")) {
+        errorMessage = "Bạn đã đăng ký buổi tư vấn này rồi!";
+      } else if (error.message.includes("not found")) {
+        errorMessage = "Không tìm thấy buổi tư vấn này!";
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setRegisteringSession(null);
+    }
+  };
+
   return (
     <>
       <div className="mentee-dashboard">
@@ -86,7 +160,7 @@ function FindTutor() {
         <main className="main-content">
           <div className="mentee-header">
             <h1 className="mentee-title">Mentee</h1>
-            <div className="mentee-email">mentee@hcmut.edu.vn</div>
+            <div className="mentee-email">c.tran@hcmut.edu.vn</div>
           </div>
           <h2 className="main-title">Tìm kiếm và lựa chọn Tutor</h2>
           
@@ -237,9 +311,11 @@ function FindTutor() {
                 marginBottom: "20px", 
                 background: "#f1f5f9", 
                 padding: "10px", 
-                borderRadius: "8px"
+                borderRadius: "8px",
+                alignItems: "center"
             }}>
                 <div style={{flex: 1}}>
+                    <label style={{fontSize: "12px", fontWeight: "bold", color: "#64748b", marginBottom: "4px", display: "block"}}>HÌNH THỨC</label>
                     <select 
                         value={scheduleMode}
                         onChange={(e) => setScheduleMode(e.target.value)}
@@ -248,20 +324,6 @@ function FindTutor() {
                         <option value="">-- Mọi hình thức --</option>
                         <option value="Online">Online</option>
                         <option value="Offline">Offline</option>
-                        
-                    </select>
-                </div>
-                <div style={{flex: 1}}>
-                    <select 
-                        value={scheduleStatus}
-                        onChange={(e) => setScheduleStatus(e.target.value)}
-                        style={{width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #cbd5e1"}}
-                    >
-                        <option value="">-- Mọi trạng thái --</option>
-                        <option value="Sắp diễn ra">Sắp diễn ra</option>
-                        <option value="Đang mở đăng ký">Đang mở đăng ký</option>
-                        <option value="Hoàn thành">Hoàn thành</option>
-                        <option value="Đã hủy">Đã hủy</option>
                     </select>
                 </div>
             </div>
@@ -296,8 +358,8 @@ function FindTutor() {
                                     fontSize: "12px", 
                                     padding: "4px 8px", 
                                     borderRadius: "4px", 
-                                    background: session.status === "Sắp diễn ra" ? "#e6fcf7" : "#f1f5f9",
-                                    color: session.status === "Sắp diễn ra" ? "#0d9488" : "#64748b",
+                                    background: getStatusStyles(session.status).bg,
+                                    color: getStatusStyles(session.status).color,
                                     fontWeight: "bold"
                                 }}>
                                     {session.status}
@@ -305,12 +367,59 @@ function FindTutor() {
                             </div>
 
                             <div style={{display: "flex", gap: "20px", fontSize: "14px", color: "#475569", flexWrap: "wrap"}}>
-                                <span><FaClock style={{marginRight: 5}}/> {session.time}</span>
+                                <span><FaClock style={{marginRight: 5}}/> {formatSessionTime(session)}</span>
                                 <span><FaGlobe style={{marginRight: 5}}/> {session.mode}</span>
+                                <span><FaUser style={{marginRight: 5}}/> {session.participants?.length || 0}/{session.maxParticipants} người</span>
                             </div>
                             
-                            <div style={{fontSize: "13px", color: "#64748b"}}>
-                                {session.content ? session.content : "Chưa có nội dung chi tiết."}
+                            {/* Hiển thị location */}
+                            <div style={{fontSize: "14px", color: "#475569"}}>
+                                <span>📍 {session.location || "Chưa cập nhật địa điểm"}</span>
+                            </div>
+                            
+                            <div style={{display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "15px"}}>
+                                <div style={{fontSize: "13px", color: "#64748b", flex: 1}}>
+                                    {session.content ? session.content : "Chưa có nội dung chi tiết."}
+                                </div>
+
+                                {/* Nút đăng ký ở bên phải, ngang hàng với nội dung */}
+                                <div style={{flexShrink: 0}}>
+                                    {isRegisteredForSession(session) ? (
+                                        <button
+                                            disabled
+                                            style={{
+                                                padding: "8px 16px",
+                                                background: "#10b981",
+                                                color: "white",
+                                                border: "none",
+                                                borderRadius: "6px",
+                                                fontSize: "13px",
+                                                fontWeight: "bold",
+                                                cursor: "not-allowed",
+                                                opacity: 0.8
+                                            }}
+                                        >
+                                            ✓ Đã đăng ký
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => handleRegisterSession(session.sessionID)}
+                                            disabled={registeringSession === session.sessionID}
+                                            style={{
+                                                padding: "8px 16px",
+                                                background: registeringSession === session.sessionID ? "#94a3b8" : "#4f46e5",
+                                                color: "white",
+                                                border: "none",
+                                                borderRadius: "6px",
+                                                fontSize: "13px",
+                                                fontWeight: "bold",
+                                                cursor: registeringSession === session.sessionID ? "not-allowed" : "pointer"
+                                            }}
+                                        >
+                                            {registeringSession === session.sessionID ? "Đang đăng ký..." : "Đăng ký"}
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     ))}
