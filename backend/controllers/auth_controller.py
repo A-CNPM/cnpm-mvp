@@ -5,14 +5,14 @@ from core.security import create_access_token
 class AuthController:
     def login(self, username: str, password: str, role: str) -> Optional[dict]:
         user = get_user(username)
-        if not user or user.get("role") != role:
+        if not user or role not in user.get("role", []):
             return None
         if not verify_password(password, user["password"]):
             return None
         # Giả lập xác thực HCMUT_SSO.accountValidation()
         # Nếu thành công, tạo token và trả về user
-        access_token = create_access_token({"sub": user["username"], "role": user["role"]})
-        return {"user": user, "access_token": access_token}
+        access_token = create_access_token({"sub": user["username"], "role": role})
+        return {"user": user, "access_token": access_token, "selected_role": role}
 
     def logout(self, user_id: str) -> bool:
         # Giả lập xóa session/token

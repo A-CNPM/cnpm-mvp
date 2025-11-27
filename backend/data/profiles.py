@@ -11,7 +11,7 @@ fake_profiles_db = {
         "trinh_do_chuyen_mon": "Đại học",
         "trinh_do_ngoai_ngu": "TOEIC 800, JLPT N3",
         "mo_ta": "Sinh viên năm 4 với 1 năm kinh nghiệm Lập trình Web Fullstack với các công nghệ NodeJS, ReactJS, JavaScript, MySQL.",
-        "tags": ["DSA", "Web"],
+        "tags": ["DSA", "Web", "NodeJS", "ReactJS", "JavaScript", "MySQL", "Fullstack", "Frontend", "Backend"],
         'role': ['Mentee', 'Tutor'],
         "lich_ranh": [
             {"id": 1, "time": "T2, 19:00 - 22:00, 1/10/2025-22/12/2025"},
@@ -29,22 +29,8 @@ fake_profiles_db = {
         "trinh_do": "Sinh viên",
         "nganh": "Khoa học máy tính",
         "mo_ta": "Sinh viên năm 2, mong muốn tìm mentor hỗ trợ học tập các môn cơ sở ngành.",
-        "tags": ["DSA", "Python"],
-        'role': ['Mentee', 'Tutor']
-    },
-    "c.tran": {
-        "userID": "c.tran",
-        "full_name": "Tran Thi C",
-        "email": "c.tran@hcmut.edu.vn",
-        "mssv": "2210002",
-        "khoa": "Khoa Khoa học và Kỹ thuật máy tính",
-        "trinh_do": "Sinh viên",
-        "nganh": "Khoa học máy tính",
-        "chuyen_mon": "Trí tuệ nhân tạo",
-        "trinh_do_chuyen_mon": "Đại học",
-        "trinh_do_ngoai_ngu": "IELTS 7.0",
-        "mo_ta": "Sinh viên năm 3 chuyên ngành AI, đang tìm kiếm mentor để phát triển kỹ năng machine learning và deep learning.",
-        "tags": ["AI", "Machine Learning", "Python", "Data Science"],
+        "tags": ["DSA", "Python", "Web"],
         'role': ['Mentee'],
+        "goals": ["NodeJS", "Fullstack", "MySQL"]
     }
 }
