@@ -115,8 +115,9 @@ function FindTutor() {
   const handleRegisterSession = async (sessionID) => {
     setRegisteringSession(sessionID);
     try {
-      // Gọi API đăng ký session thực (sử dụng c.tran làm mentee)
-      const result = await SessionService.registerSession(sessionID, "c.tran");
+      // Lấy username của mentee từ localStorage
+      const username = localStorage.getItem("username");
+      const result = await SessionService.registerSession(sessionID, username);
       
       if (result.success) {
         alert(`Đăng ký thành công buổi tư vấn "${result.session.topic}"!`);
