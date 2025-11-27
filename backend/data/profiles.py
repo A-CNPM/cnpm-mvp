@@ -30,6 +30,7 @@ fake_profiles_db = {
         "nganh": "Khoa học máy tính",
         "mo_ta": "Sinh viên năm 2, mong muốn tìm mentor hỗ trợ học tập các môn cơ sở ngành.",
         "tags": ["DSA", "Python", "Web"],
-        'role': ['Mentee']
+        'role': ['Mentee'],
+        "goals": ["NodeJS", "Fullstack", "MySQL"]
     }
 }
