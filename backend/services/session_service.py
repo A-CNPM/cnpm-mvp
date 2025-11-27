@@ -16,7 +16,7 @@ class SessionService:
         session_id = f"S{str(uuid.uuid4())[:6]}"
         session = data.dict()
         session["sessionID"] = session_id
-        session["status"] = "Khởi tạo"
+        session["status"] = "Đang mở đăng ký"
         session["participants"] = []
         session["resources"] = []
         fake_sessions_db[session_id] = session
@@ -89,7 +89,7 @@ class SessionService:
         
         # Cập nhật status nếu cần
         if len(session["participants"]) == max_participants:
-            session["status"] = "Đã đầy"
+            session["status"] = "Sắp diễn ra"
             
         return {"success": True, "message": "Registration successful", "session": session}
     
@@ -108,8 +108,8 @@ class SessionService:
         session["participants"].remove(mentee_id)
         
         # Cập nhật status nếu cần
-        if session.get("status") == "Đã đầy":
-            session["status"] = "Đã xác nhận"
+        if session.get("status") == "Sắp diễn ra":
+            session["status"] = "Đang mở đăng ký"
             
         return {"success": True, "message": "Cancellation successful", "session": session}
 
@@ -134,7 +134,7 @@ class SessionService:
             
         # Đảm bảo session reference đúng
         resource_data["session"] = session_id
-        resource_data["uploadDate"] = datetime.now().isoformat()
+        resource_data["uploadDate"] = datetime.now().strftime("%d/%m/%Y %H:%M")
         
         session["resources"].append(resource_data)
         

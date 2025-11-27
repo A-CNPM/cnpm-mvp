@@ -2,7 +2,7 @@ import { FaUser, FaBook, FaGlobe, FaCalendar, FaPaperclip, FaFilter } from "reac
 import React, { useState, useEffect } from "react";
 import "../../assets/css/style.css";
 import MenteeSidebar from "../../components/MenteeSidebar";
-import SearchService from "../../api/search"; 
+import SessionService from "../../api/session"; 
 
 function Meeting() {
   // --- STATE QUẢN LÝ UI ---
@@ -12,6 +12,7 @@ function Meeting() {
   
   // --- STATE DỮ LIỆU ---
   const [meetings, setMeetings] = useState([]);
+  const [cancelingSession, setCancelingSession] = useState(null); // ID session đang hủy
 
   // --- STATE TÌM KIẾM & BỘ LỌC ---
   const [keyword, setKeyword] = useState("");
@@ -19,18 +20,30 @@ function Meeting() {
   const [filterMode, setFilterMode] = useState("");      // Giá trị: "", "Online", "Offline"
   const [filterStatus, setFilterStatus] = useState("");  // Giá trị: "", "Sắp diễn ra", ...
 
+  // Mentee ID hiện tại
+  const currentMenteeId = "c.tran";
+
+  // Hàm format thời gian session giống như trong FindTutor
+  const formatSessionTime = (session) => {
+    if (session.startTime && session.endTime) {
+      return `${session.startTime} - ${session.endTime.split(' ')[1]}`;
+    }
+    return session.time || "Chưa xác định";
+  };
+
   // --- HÀM HELPER: MÀU SẮC TRẠNG THÁI ---
   const getStatusStyles = (status) => {
     switch (status) {
       case "Hoàn thành":
-      case "Đã kết thúc":
         return { color: "#2dd4bf", bg: "#e6fcf7" }; // Xanh ngọc
       case "Đã hủy":
         return { color: "#f87171", bg: "#fff1f2" }; // Đỏ
       case "Sắp diễn ra":
+        return { color: "#f59e0b", bg: "#fef3c7" }; // Màu cam vàng
       case "Đang mở đăng ký":
-      default:
         return { color: "#a78bfa", bg: "#f3f0ff" }; // Tím
+      default:
+        return { color: "#64748b", bg: "#f1f5f9" }; // Xám
     }
   };
 
@@ -38,20 +51,25 @@ function Meeting() {
   const fetchSessions = async () => {
     setLoading(true);
     try {
-      // 1. Tạo tiêu chí tìm kiếm từ State
+      // 1. Tạo tiêu chí tìm kiếm từ State (lấy tất cả sessions)
       const criteria = {
         keyword: keyword,
         mode: filterMode || null,     // Nếu rỗng thì gửi null
-        status: filterStatus || null  // Nếu rỗng thì gửi null
+        status: filterStatus || null, // Nếu rỗng thì gửi null
       };
 
       console.log("Calling API with:", criteria);
 
-      // 2. Gọi Service
-      const data = await SearchService.searchSessions(criteria);
+      // 2. Gọi Service lấy tất cả sessions
+      const data = await SessionService.searchSessions(criteria);
+
+      // 3. Lọc chỉ các sessions mà mentee đã đăng ký
+      const registeredSessions = data.filter(session => 
+        session.participants && session.participants.includes(currentMenteeId)
+      );
 
       // 3. Map dữ liệu từ Backend -> Frontend
-      const formattedData = data.map((item) => {
+      const formattedData = registeredSessions.map((item) => {
         const styles = getStatusStyles(item.status);
         return {
             ...item, // Giữ lại các trường gốc
@@ -60,7 +78,7 @@ function Meeting() {
             topic: item.topic,
             tutor: item.tutor, // Backend trả về ID
             type: item.mode,     // UI dùng 'type', BE trả 'mode'
-            time: item.startTime + " - " + item.endTime,
+            time: formatSessionTime(item), // Sử dụng hàm format thời gian
             status: item.status,
             statusColor: styles.color,
             statusBg: styles.bg,
@@ -97,6 +115,40 @@ function Meeting() {
     fetchSessions();
   };
 
+  // --- HANDLER: Hủy đăng ký session ---
+  const handleCancelSession = async (sessionId, sessionTopic) => {
+    if (!confirm(`Bạn có chắc chắn muốn hủy đăng ký buổi tư vấn "${sessionTopic}"?`)) {
+      return;
+    }
+
+    setCancelingSession(sessionId);
+    try {
+      const result = await SessionService.cancelSession(sessionId, currentMenteeId);
+      
+      if (result.success) {
+        alert(`Hủy đăng ký thành công buổi tư vấn "${sessionTopic}"!`);
+        // Refresh danh sách để cập nhật
+        fetchSessions();
+      } else {
+        alert(result.message || "Hủy đăng ký thất bại!");
+      }
+    } catch (error) {
+      console.error("Lỗi hủy đăng ký:", error);
+      
+      let errorMessage = "Hủy đăng ký thất bại. Vui lòng thử lại!";
+      
+      if (error.message.includes("not registered")) {
+        errorMessage = "Bạn chưa đăng ký buổi tư vấn này!";
+      } else if (error.message.includes("not found")) {
+        errorMessage = "Không tìm thấy buổi tư vấn này!";
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setCancelingSession(null);
+    }
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       fetchSessions();
@@ -114,7 +166,7 @@ function Meeting() {
         <main className="main-content">
           <div className="mentee-header">
             <h1 className="mentee-title">Mentee</h1>
-            <div className="mentee-email">mentee@hcmut.edu.vn</div>
+            <div className="mentee-email">c.tran@hcmut.edu.vn</div>
           </div>
           <h2 className="main-title">Buổi tư vấn</h2>
           
@@ -241,12 +293,32 @@ function Meeting() {
                   >
                     {meeting.status}
                   </span>
-                  <button
-                    className="meeting-detail-btn"
-                    onClick={() => handleShowDetail(meeting)}
-                  >
-                    Chi tiết
-                  </button>
+                  <div style={{display: "flex", gap: "8px"}}>
+                    <button
+                      className="meeting-detail-btn"
+                      onClick={() => handleShowDetail(meeting)}
+                    >
+                      Chi tiết
+                    </button>
+                    {meeting.status === "Đang mở đăng ký" && (
+                      <button
+                        onClick={() => handleCancelSession(meeting.sessionID, meeting.topic)}
+                        disabled={cancelingSession === meeting.sessionID}
+                        style={{
+                          padding: "6px 12px",
+                          background: cancelingSession === meeting.sessionID ? "#94a3b8" : "#dc2626",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "6px",
+                          fontSize: "13px",
+                          fontWeight: "bold",
+                          cursor: cancelingSession === meeting.sessionID ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {cancelingSession === meeting.sessionID ? "Đang hủy..." : "Hủy"}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

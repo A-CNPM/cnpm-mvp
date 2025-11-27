@@ -2,10 +2,10 @@ fake_sessions_db = {
     "S001": {
         "sessionID": "S001",
         "tutor": "a.nguyen",
-        "participants": ["b.levan", "c.tran"],
+        "participants": ["c.tran", "d.pham"],
         "topic": "Chủ đề sinh viên - Kỹ thuật học tập hiệu quả",
         "mode": "Online",
-        "status": "Sắp diễn ra",
+        "status": "Đang mở đăng ký",
         "startTime": "01/11/2025 12:00",
         "endTime": "01/11/2025 14:00",
         "maxParticipants": 10,
@@ -19,7 +19,7 @@ fake_sessions_db = {
                 "url": "https://drive.google.com/file1",
                 "uploadedBy": "a.nguyen",
                 "accessLevel": "Public",
-                "uploadDate": "2025-01-10T10:00:00"
+                "uploadDate": "10/01/2025 10:00"
             }
         ],
         "location": "www.meet.google.com/123-456-789",
@@ -27,7 +27,7 @@ fake_sessions_db = {
     },
     "S002": {
         "sessionID": "S002", 
-        "tutor": "b.tutor",
+        "tutor": "b.levan",
         "participants": [],
         "topic": "Lập trình Python cơ bản",
         "mode": "Offline",
@@ -42,27 +42,67 @@ fake_sessions_db = {
     "S003": {
         "sessionID": "S003",
         "tutor": "a.nguyen",
-        "participants": ["b.levan", "c.tran"],
-        "topic": "LGBT that ghe gom",
-        "mode": "Online",
-        "status": "Sắp diễn ra",
-        "startTime": "01/11/2025 12:00",
-        "endTime": "01/11/2025 14:00",
-        "maxParticipants": 10,
+        "participants": ["d.pham", "e.vo"],
+        "topic": "Phát triển kỹ năng giao tiếp",
+        "mode": "Offline",
+        "status": "Đang mở đăng ký",
+        "startTime": "05/12/2025 09:00",
+        "endTime": "05/12/2025 11:30",
+        "maxParticipants": 8,
         "resources": [
             {
-                "resourceID": "R001",
-                "session": "S001", 
-                "title": "Tài liệu học tập",
-                "description": "Hướng dẫn kỹ thuật học tập hiệu quả",
+                "resourceID": "R003",
+                "session": "S003", 
+                "title": "Bài tập giao tiếp",
+                "description": "Các bài tập thực hành kỹ năng giao tiếp hiệu quả",
                 "type": "Document",
-                "url": "https://drive.google.com/file1",
+                "url": "https://drive.google.com/file3",
                 "uploadedBy": "a.nguyen",
                 "accessLevel": "Public",
-                "uploadDate": "2025-01-10T10:00:00"
+                "uploadDate": "25/11/2025 14:30"
             }
         ],
-        "location": "www.meet.google.com/123-456-789",
-        "content": "Bai tru LGBT",
+        "location": "Phòng 203, Tòa H2",
+        "content": "Buổi học tập trung vào phát triển kỹ năng giao tiếp trong môi trường học tập và công việc",
+    },
+    "S004": {
+        "sessionID": "S004",
+        "tutor": "b.levan",
+        "participants": [],
+        "topic": "Quản lý thời gian hiệu quả",
+        "mode": "Online",
+        "status": "Đang mở đăng ký",
+        "startTime": "10/12/2025 14:00",
+        "endTime": "10/12/2025 16:00",
+        "maxParticipants": 15,
+        "resources": [],
+        "location": "www.meet.google.com/abc-def-ghi",
+        "content": "Hướng dẫn quản lý thời gian cho sinh viên",
+    },
+    "S005": {
+        "sessionID": "S005",
+        "tutor": "a.nguyen",
+        "participants": ["b.levan", "c.tran", "d.pham"],
+        "topic": "Kỹ năng thuyết trình",
+        "mode": "Offline",
+        "status": "Hoàn thành",
+        "startTime": "15/11/2025 09:00",
+        "endTime": "15/11/2025 11:00",
+        "maxParticipants": 12,
+        "resources": [
+            {
+                "resourceID": "R002",
+                "session": "S005", 
+                "title": "Slide thuyết trình",
+                "description": "Mẫu slide thuyết trình chuyên nghiệp",
+                "type": "Document",
+                "url": "https://drive.google.com/file2",
+                "uploadedBy": "a.nguyen",
+                "accessLevel": "Public",
+                "uploadDate": "14/11/2025 10:00"
+            }
+        ],
+        "location": "Phòng 101, Tòa H1",
+        "content": "Buổi học về kỹ năng thuyết trình đã hoàn thành",
     }
 }
