@@ -25,7 +25,7 @@ function FindTutor() {
   
   // Hàm kiểm tra mentee đã đăng ký session chưa
   const isRegisteredForSession = (session) => {
-    const menteeId = "c.tran";
+    const menteeId = "b.levan";
     return session.participants && session.participants.includes(menteeId);
   };
 
@@ -83,7 +83,7 @@ function FindTutor() {
             mode: scheduleMode || null,
             status: "Đang mở đăng ký" // Luôn chỉ hiển thị "Đang mở đăng ký"
         };
-        const data = await SessionService.searchSessions(criteria);
+        const data = await SearchService.searchSessions(criteria);
         setTutorSessions(data);
       } catch (error) {
         console.error("Lỗi lấy lịch dạy:", error);
@@ -115,8 +115,8 @@ function FindTutor() {
   const handleRegisterSession = async (sessionID) => {
     setRegisteringSession(sessionID);
     try {
-      // Gọi API đăng ký session thực (sử dụng c.tran làm mentee)
-      const result = await SessionService.registerSession(sessionID, "c.tran");
+      // Gọi API đăng ký session thực (sử dụng b.levan làm mentee)
+      const result = await SessionService.registerSession(sessionID, "b.levan");
       
       if (result.success) {
         alert(`Đăng ký thành công buổi tư vấn "${result.session.topic}"!`);
@@ -127,7 +127,7 @@ function FindTutor() {
             mode: scheduleMode || null,
             status: "Đang mở đăng ký"
         };
-        const data = await SessionService.searchSessions(criteria);
+        const data = await SearchService.searchSessions(criteria);
         setTutorSessions(data);
       } else {
         alert(result.message || "Đăng ký thất bại!");
@@ -160,7 +160,7 @@ function FindTutor() {
         <main className="main-content">
           <div className="mentee-header">
             <h1 className="mentee-title">Mentee</h1>
-            <div className="mentee-email">c.tran@hcmut.edu.vn</div>
+            <div className="mentee-email">b.levan@hcmut.edu.vn</div>
           </div>
           <h2 className="main-title">Tìm kiếm và lựa chọn Tutor</h2>
           
