@@ -7,17 +7,19 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/login", response_model=TokenResponse)
 def login(request: LoginRequest):
-    result = auth_controller.login(request.username, request.password, getattr(request, "role", None))
+    result = auth_controller.login(request.username, request.password, request.role)
     if not result:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     user = result["user"]
     access_token = result["access_token"]
+    selected_role = result["selected_role"]
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "role": user["role"],
+        "role": selected_role,
         "username": user["username"],
-        "full_name": user["full_name"]
+        "full_name": user["full_name"],
+        "roles": user["role"]
     }
 
 @router.post("/logout")
