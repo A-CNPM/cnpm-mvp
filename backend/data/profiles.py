@@ -3,7 +3,7 @@ fake_profiles_db = {
         "userID": "a.nguyen",
         "full_name": "Nguyen Van A",
         "email": "a.nguyen@hcmut.edu.vn",
-        "mssv": "2510000",
+        "mssv": "2210001",
         "khoa": "Khoa Khoa học và Kỹ thuật máy tính",
         "trinh_do": "Sinh viên",
         "nganh": "Khoa học máy tính",
@@ -11,12 +11,25 @@ fake_profiles_db = {
         "trinh_do_chuyen_mon": "Đại học",
         "trinh_do_ngoai_ngu": "TOEIC 800, JLPT N3",
         "mo_ta": "Sinh viên năm 4 với 1 năm kinh nghiệm Lập trình Web Fullstack với các công nghệ NodeJS, ReactJS, JavaScript, MySQL.",
-        "tags": ["DSA", "Web"],
+        "tags": ["DSA", "Web", "NodeJS", "ReactJS", "JavaScript", "MySQL", "Fullstack", "Frontend", "Backend"],
+        'role': ['Mentee', 'Tutor'],
         "lich_ranh": [
             {"id": 1, "time": "T2, 19:00 - 22:00, 1/10/2025-22/12/2025"},
             {"id": 2, "time": "T4, 9:00 - 11:00, 1/10/2025-22/12/2025"},
             {"id": 3, "time": "T4, 14:00 - 16:00, 1/10/2025-31/10/2025"},
             {"id": 4, "time": "T7, 13:00 - 15:00, 1/10/2025"}
         ]
+    },
+    "b.levan": {
+        "userID": "b.levan",
+        "full_name": "Le Van B",
+        "email": "b.levan@hcmut.edu.vn",
+        "mssv": "2510001",
+        "khoa": "Khoa Khoa học và Kỹ thuật máy tính",
+        "trinh_do": "Sinh viên",
+        "nganh": "Khoa học máy tính",
+        "mo_ta": "Sinh viên năm 2, mong muốn tìm mentor hỗ trợ học tập các môn cơ sở ngành.",
+        "tags": ["DSA", "Python", "Web"],
+        'role': ['Mentee']
     }
 }
