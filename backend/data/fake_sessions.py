@@ -2,7 +2,7 @@ fake_sessions_db = {
     "S001": {
         "sessionID": "S001",
         "tutor": "a.nguyen",
-        "participants": ["c.tran", "d.pham"],
+        "participants": ["b.levan", "d.pham"],
         "topic": "Chủ đề sinh viên - Kỹ thuật học tập hiệu quả",
         "mode": "Online",
         "status": "Đang mở đăng ký",
@@ -23,11 +23,11 @@ fake_sessions_db = {
             }
         ],
         "location": "www.meet.google.com/123-456-789",
-        "content": "Nội dung buổi tư vấn",
+        "content": "Buổi học về kỹ thuật học tập hiệu quả dành cho sinh viên",
     },
     "S002": {
         "sessionID": "S002", 
-        "tutor": "b.levan",
+        "tutor": "c.tran",
         "participants": [],
         "topic": "Lập trình Python cơ bản",
         "mode": "Offline",
@@ -37,7 +37,7 @@ fake_sessions_db = {
         "maxParticipants": 8,
         "resources": [],
         "location": "www.meet.google.com/123-456-789",
-        "content": "Nội dung buổi tư vấn",
+        "content": "Buổi học về lập trình Python cơ bản",
     },
     "S003": {
         "sessionID": "S003",
@@ -67,7 +67,7 @@ fake_sessions_db = {
     },
     "S004": {
         "sessionID": "S004",
-        "tutor": "b.levan",
+        "tutor": "c.tran",
         "participants": [],
         "topic": "Quản lý thời gian hiệu quả",
         "mode": "Online",
@@ -103,6 +103,6 @@ fake_sessions_db = {
             }
         ],
         "location": "Phòng 101, Tòa H1",
-        "content": "Buổi học về kỹ năng thuyết trình đã hoàn thành",
+        "content": "Buổi học về kỹ năng thuyết trình",
     }
 }

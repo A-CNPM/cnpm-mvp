@@ -8,10 +8,10 @@ fake_tutors_db = {
         "tags": ["DSA", "Web"],
         "profile": "Sinh viên năm 4, kinh nghiệm Web Fullstack."
     },
-    "b.levan": {
-        "tutorID": "b.levan",
-        "full_name": "Le Van B",
-        "email": "levanb@hcmut.edu.vn",
+    "c.tran": {
+        "tutorID": "c.tran",
+        "full_name": "Tran Thi C",
+        "email": "tranthic@hcmut.edu.vn",
         "rating": 4.5,
         "major": "Khoa học dữ liệu",
         "tags": ["Python", "ML"],

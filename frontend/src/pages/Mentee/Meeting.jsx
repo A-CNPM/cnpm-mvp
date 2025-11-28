@@ -2,6 +2,7 @@ import { FaUser, FaBook, FaGlobe, FaCalendar, FaPaperclip, FaFilter } from "reac
 import React, { useState, useEffect } from "react";
 import "../../assets/css/style.css";
 import MenteeSidebar from "../../components/MenteeSidebar";
+import SearchService from "../../api/search";
 import SessionService from "../../api/session"; 
 
 function Meeting() {
@@ -21,7 +22,7 @@ function Meeting() {
   const [filterStatus, setFilterStatus] = useState("");  // Giá trị: "", "Sắp diễn ra", ...
 
   // Mentee ID hiện tại
-  const currentMenteeId = "c.tran";
+  const currentMenteeId = "b.levan";
 
   // Hàm format thời gian session giống như trong FindTutor
   const formatSessionTime = (session) => {
@@ -61,7 +62,7 @@ function Meeting() {
       console.log("Calling API with:", criteria);
 
       // 2. Gọi Service lấy tất cả sessions
-      const data = await SessionService.searchSessions(criteria);
+      const data = await SearchService.searchSessions(criteria);
 
       // 3. Lọc chỉ các sessions mà mentee đã đăng ký
       const registeredSessions = data.filter(session => 
@@ -166,7 +167,7 @@ function Meeting() {
         <main className="main-content">
           <div className="mentee-header">
             <h1 className="mentee-title">Mentee</h1>
-            <div className="mentee-email">c.tran@hcmut.edu.vn</div>
+            <div className="mentee-email">b.levan@hcmut.edu.vn</div>
           </div>
           <h2 className="main-title">Buổi tư vấn</h2>
           
