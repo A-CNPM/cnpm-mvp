@@ -9,7 +9,7 @@ function Footer() {
       </div>
       <div className="footer-right">
         <span>&gt; Thông tin liên hệ và hỗ trợ</span>
-        <span>Email: cnpm.hk251@gmail.com</span>
+        <span>Email: cnpm.bk25@gmail.com</span>
         <span>&gt; Biểu mẫu hỗ trợ</span>
       </div>
     </footer>

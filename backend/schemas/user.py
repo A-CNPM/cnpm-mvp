@@ -27,3 +27,4 @@ class TokenResponse(BaseModel):
     role: str
     username: str
     full_name: str
+    tutor_type: str | None = None  # Thêm trường tutor_type cho Tutor
