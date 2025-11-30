@@ -11,8 +11,7 @@ function RoleSelection() {
 
   const handleRoleSelect = (role) => {
     setSelectedRole(role);
-    // Chuyển đến trang login với role đã chọn
-    navigate(`/login?role=${role}`);
+    // Chỉ chọn role, không tự động điều hướng
   };
 
   return (

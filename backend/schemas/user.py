@@ -8,7 +8,7 @@ class UserInDB(User):
     pass
 
 class LoginRequest(BaseModel):
-    username: str
+    username: str  # Thực tế là email trường (@hcmut.edu.vn hoặc @hcmut.vn) - tất cả users đều dùng HCMUT_SSO
     password: str
     role: str
 

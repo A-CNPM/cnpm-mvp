@@ -41,7 +41,11 @@ def login(request: LoginRequest):
         # Lỗi từ validation (email format, SSO verification, etc.)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        # Log lỗi để debug
+        import traceback
+        print(f"Login error: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e) or "Invalid credentials")
 
 @router.post("/logout")
 def logout(request: LogoutRequest):

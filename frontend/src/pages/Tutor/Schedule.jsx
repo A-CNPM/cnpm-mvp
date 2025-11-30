@@ -39,10 +39,10 @@ function Schedule() {
   useEffect(() => {
     loadSlots();
     
-    // Tự động refresh mỗi 10 giây để kiểm tra slot đã đạt ngưỡng chưa
+    // Tự động refresh mỗi 30 giây để kiểm tra slot đã đạt ngưỡng chưa (giảm tần suất để tối ưu performance)
     const interval = setInterval(() => {
       loadSlots();
-    }, 10000);
+    }, 30000); // Tăng từ 10s lên 30s
     
     return () => clearInterval(interval);
   }, [tutorId, filterStatus]);
@@ -51,7 +51,9 @@ function Schedule() {
     setLoadingSlots(true);
     try {
       const data = await AvailableSlotService.getTutorSlots(tutorId, filterStatus || null);
-      setSlots(data);
+      // Lọc bỏ các slot đã chuyển thành session (chỉ hiển thị lịch rảnh chưa trở thành session)
+      const filteredData = data.filter(slot => slot.status !== "Đã chuyển thành session");
+      setSlots(filteredData);
     } catch (error) {
       console.error("Lỗi khi tải lịch rảnh:", error);
       showMessage("Không thể tải danh sách lịch rảnh", "error");
@@ -215,9 +217,7 @@ function Schedule() {
     const registeredCount = slot.registered_participants?.length || 0;
     const minParticipants = slot.min_participants || 1;
     
-    if (slot.status === "Đã chuyển thành session") {
-      return { text: "Đã chuyển thành session", color: "#10b981", bg: "#d1fae5" };
-    }
+    // Không cần xử lý "Đã chuyển thành session" vì các slot này đã bị lọc bỏ
     if (slot.status === "Đã đóng") {
       return { text: "Đã đóng", color: "#6b7280", bg: "#f3f4f6" };
     }
@@ -324,7 +324,6 @@ function Schedule() {
               <option value="Mở đăng ký">Mở đăng ký</option>
               <option value="Chờ xác nhận">Chờ xác nhận</option>
               <option value="Đã xác nhận">Đã xác nhận</option>
-              <option value="Đã chuyển thành session">Đã chuyển thành session</option>
               <option value="Đã đóng">Đã đóng</option>
               <option value="Đã thay đổi">Đã thay đổi</option>
             </select>

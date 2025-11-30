@@ -7,6 +7,7 @@ from data.tutor_registrations import fake_tutor_registrations_db, fake_registrat
 from data.users import fake_users_db
 from data.profiles import fake_profiles_db
 from data.tutor_profiles import fake_tutor_profiles_db
+from data.tutors_auth import fake_tutors_auth_db
 from data.fake_sessions import fake_sessions_db
 from data.reviews import fake_reviews_db
 from schemas.admin import TutorApprovalRequest, UserSearchCriteria
@@ -15,14 +16,30 @@ import uuid
 
 class AdminService:
     
-    def verify_admin_login(self, email: str, password: str) -> Optional[Dict]:
-        """Xác thực đăng nhập Admin"""
-        # Kiểm tra email có đúng format không
-        if not (email.endswith("@hcmut.edu.vn") or email.endswith("@hcmut.vn")):
-            raise ValueError("Admin phải đăng nhập bằng email trường (@hcmut.edu.vn hoặc @hcmut.vn)")
+    def verify_admin_login(self, email_or_username: str, password: str) -> Optional[Dict]:
+        """Xác thực đăng nhập Admin - hỗ trợ cả username và email"""
+        from data.admin_auth import get_admin_by_username
         
-        # Giả lập xác thực HCMUT_SSO
+        # Nếu không có @, coi như username và tự động thêm @hcmut.edu.vn
+        if "@" not in email_or_username:
+            email = f"{email_or_username}@hcmut.edu.vn"
+        else:
+            email = email_or_username
+            # Kiểm tra email có đúng format không
+            if not (email.endswith("@hcmut.edu.vn") or email.endswith("@hcmut.vn")):
+                raise ValueError("Admin phải đăng nhập bằng email trường (@hcmut.edu.vn hoặc @hcmut.vn)")
+        
+        # Tìm admin theo email
         admin_auth = get_admin_by_email(email)
+        
+        # Nếu không tìm thấy theo email, thử tìm theo username
+        if not admin_auth:
+            if "@" in email_or_username:
+                email_username = email_or_username.split("@")[0].lower()
+            else:
+                email_username = email_or_username.lower()
+            admin_auth = get_admin_by_username(email_username)
+        
         if not admin_auth or not admin_auth.get("is_verified", False):
             raise ValueError("Bạn chưa được xác thực là Admin. Vui lòng liên hệ quản trị viên.")
         
@@ -89,6 +106,31 @@ class AdminService:
                         user["role"].append("Tutor")
                 else:
                     user["role"] = ["Mentee", "Tutor"]
+                
+                # Lấy email từ profile hoặc tạo từ username
+                user_profile = fake_profiles_db.get(user_id)
+                email = None
+                if user_profile and user_profile.get("email"):
+                    email = user_profile.get("email")
+                elif user.get("email"):
+                    email = user.get("email")
+                else:
+                    # Tạo email từ username (giả lập)
+                    email = f"{user_id}@hcmut.edu.vn"
+                    user["email"] = email
+                
+                # Thêm vào tutors_auth_db để có thể đăng nhập với role Tutor
+                if email and email not in fake_tutors_auth_db:
+                    fake_tutors_auth_db[email.lower()] = {
+                        "username": user_id,
+                        "email": email.lower(),
+                        "full_name": user.get("full_name") or user_profile.get("full_name") if user_profile else user_id,
+                        "tutor_type": "Sinh viên năm trên",  # Mặc định cho sinh viên được phê duyệt
+                        "is_verified": True,
+                        "verified_by": "Admin",
+                        "synced_from": "TSS",
+                        "has_mentee_role": True  # Có cả vai trò Mentee
+                    }
             
             # Cập nhật tutor_profile nếu có
             tutor_profile = fake_tutor_profiles_db.get(user_id)
@@ -99,7 +141,7 @@ class AdminService:
                 tutor_profile["is_editable"] = True
             
             registration["status"] = "Đã phê duyệt"
-            message = "Hồ sơ đã được phê duyệt. Tutor đã được cấp quyền."
+            message = "Hồ sơ đã được phê duyệt. Tutor đã được cấp quyền. Bạn có thể đăng nhập với cả 2 vai trò Mentee và Tutor."
             
         elif request.action == "reject":
             if not request.reason:

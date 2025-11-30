@@ -42,4 +42,7 @@ app.include_router(admin_router)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    import os
+    # Tắt reload để tăng performance (chỉ bật khi development)
+    reload = os.getenv("RELOAD", "False").lower() == "true"  # Mặc định tắt reload
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=reload, log_level="info")

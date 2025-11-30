@@ -15,12 +15,13 @@ import {
   FaChartLine,
   FaArrowRight,
   FaUsers,
-  FaSpinner
+  FaSpinner,
+  FaChalkboardTeacher
 } from "react-icons/fa";
 
 function Overview() {
   const navigate = useNavigate();
-  const tutorId = localStorage.getItem("username") || "b.tutor";
+  const tutorId = localStorage.getItem("username") || localStorage.getItem("user_id") || "b.tutor";
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalSlots: 0,
@@ -34,6 +35,13 @@ function Overview() {
   const [upcomingSessions, setUpcomingSessions] = useState([]);
   const [recentReviews, setRecentReviews] = useState([]);
 
+  // Debug: Log tutorId khi component mount
+  useEffect(() => {
+    console.log("📋 Tutor Overview - tutorId:", tutorId);
+    console.log("📋 localStorage username:", localStorage.getItem("username"));
+    console.log("📋 localStorage user_id:", localStorage.getItem("user_id"));
+  }, []);
+
   useEffect(() => {
     loadOverviewData();
   }, [tutorId]);
@@ -41,73 +49,139 @@ function Overview() {
   const loadOverviewData = async () => {
     setLoading(true);
     try {
-      // Lấy các dữ liệu song song
-      const [slots, sessions, reviews, progressTrackings] = await Promise.all([
-        AvailableSlotService.getTutorSlots(tutorId),
-        SessionService.getUserSessions(tutorId),
-        ReviewService.getTutorReviews(tutorId),
-        ProgressTrackingService.getTutorProgressTrackings(tutorId)
+      console.log("🔄 Bắt đầu load dữ liệu cho tutor:", tutorId);
+      
+      // Lấy các dữ liệu song song với error handling riêng cho từng API
+      const [slots, sessions, reviews, progressTrackings] = await Promise.allSettled([
+        AvailableSlotService.getTutorSlots(tutorId).catch(err => {
+          console.error("❌ Lỗi khi lấy slots:", err);
+          return [];
+        }),
+        SessionService.getUserSessions(tutorId).catch(err => {
+          console.error("❌ Lỗi khi lấy sessions:", err);
+          return [];
+        }),
+        ReviewService.getTutorReviews(tutorId).catch(err => {
+          console.error("❌ Lỗi khi lấy reviews:", err);
+          return [];
+        }),
+        ProgressTrackingService.getTutorProgressTrackings(tutorId).catch(err => {
+          console.error("❌ Lỗi khi lấy progress trackings:", err);
+          return [];
+        })
       ]);
 
+      // Xử lý kết quả từ Promise.allSettled
+      const slotsData = slots.status === "fulfilled" ? slots.value : [];
+      const sessionsData = sessions.status === "fulfilled" ? sessions.value : [];
+      const reviewsData = reviews.status === "fulfilled" ? reviews.value : [];
+      const progressTrackingsData = progressTrackings.status === "fulfilled" ? progressTrackings.value : [];
+
+      console.log("✅ Dữ liệu đã load:", {
+        slots: slotsData.length,
+        sessions: sessionsData.length,
+        reviews: reviewsData.length,
+        progressTrackings: progressTrackingsData.length
+      });
+
+      // Đảm bảo dữ liệu là mảng
+      const slotsArray = Array.isArray(slotsData) ? slotsData : [];
+      const sessionsArray = Array.isArray(sessionsData) ? sessionsData : [];
+      const reviewsArray = Array.isArray(reviewsData) ? reviewsData : [];
+      const progressTrackingsArray = Array.isArray(progressTrackingsData) ? progressTrackingsData : [];
+
       // Lọc sessions
-      const upcoming = sessions.filter(s => 
+      const upcoming = sessionsArray.filter(s => 
         s.status === "Sắp diễn ra" || s.status === "Đang diễn ra" || s.status === "Đã xác nhận"
       );
       
-      const completed = sessions.filter(s => 
+      const completed = sessionsArray.filter(s => 
         s.status === "Hoàn thành" || s.status === "Đã kết thúc"
       );
 
       // Đếm số sinh viên duy nhất
       const studentSet = new Set();
-      sessions.forEach(s => {
-        s.participants?.forEach(participantId => {
-          studentSet.add(participantId);
-        });
+      sessionsArray.forEach(s => {
+        if (s.participants && Array.isArray(s.participants)) {
+          s.participants.forEach(participantId => {
+            studentSet.add(participantId);
+          });
+        }
       });
 
       // Tính điểm đánh giá trung bình
       let avgRating = 0;
-      if (reviews.length > 0) {
-        const totalRating = reviews.reduce((sum, r) => sum + (r.rating || 0), 0);
-        avgRating = Math.round((totalRating / reviews.length) * 10) / 10;
+      if (reviewsArray.length > 0) {
+        const totalRating = reviewsArray.reduce((sum, r) => sum + (r.rating || 0), 0);
+        avgRating = Math.round((totalRating / reviewsArray.length) * 10) / 10;
       }
 
       // Lọc slots đang mở đăng ký
-      const activeSlots = slots.filter(s => 
+      const activeSlots = slotsArray.filter(s => 
         s.status === "Mở đăng ký" || s.status === "Chờ xác nhận"
       );
 
       // Lấy các session sắp diễn ra (tối đa 5)
       const sortedUpcoming = upcoming
         .sort((a, b) => {
-          const dateA = new Date(a.startTime?.replace(/(\d{2})\/(\d{2})\/(\d{4})/, "$3-$2-$1") || 0);
-          const dateB = new Date(b.startTime?.replace(/(\d{2})\/(\d{2})\/(\d{4})/, "$3-$2-$1") || 0);
-          return dateA - dateB;
+          try {
+            const dateA = new Date(a.startTime?.replace(/(\d{2})\/(\d{2})\/(\d{4})/, "$3-$2-$1") || 0);
+            const dateB = new Date(b.startTime?.replace(/(\d{2})\/(\d{2})\/(\d{4})/, "$3-$2-$1") || 0);
+            return dateA - dateB;
+          } catch {
+            return 0;
+          }
         })
         .slice(0, 5);
 
       // Lấy các đánh giá gần đây (tối đa 5)
-      const sortedReviews = reviews
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      const sortedReviews = reviewsArray
+        .sort((a, b) => {
+          try {
+            return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+          } catch {
+            return 0;
+          }
+        })
         .slice(0, 5);
 
       setStats({
-        totalSlots: slots.length,
+        totalSlots: slotsArray.length,
         activeSlots: activeSlots.length,
         upcomingSessions: upcoming.length,
         completedSessions: completed.length,
         totalStudents: studentSet.size,
         averageRating: avgRating,
-        totalProgressRecords: progressTrackings.length
+        totalProgressRecords: progressTrackingsArray.length
       });
 
       setUpcomingSessions(sortedUpcoming);
       setRecentReviews(sortedReviews);
+      
+      console.log("✅ Đã cập nhật stats:", {
+        totalSlots: slotsArray.length,
+        activeSlots: activeSlots.length,
+        upcomingSessions: upcoming.length,
+        completedSessions: completed.length
+      });
     } catch (error) {
-      console.error("Lỗi khi tải dữ liệu tổng quan:", error);
+      console.error("❌ Lỗi khi tải dữ liệu tổng quan:", error);
+      console.error("Chi tiết lỗi:", error.message, error.stack);
+      // Đặt giá trị mặc định nếu có lỗi
+      setStats({
+        totalSlots: 0,
+        activeSlots: 0,
+        upcomingSessions: 0,
+        completedSessions: 0,
+        totalStudents: 0,
+        averageRating: 0,
+        totalProgressRecords: 0
+      });
+      setUpcomingSessions([]);
+      setRecentReviews([]);
     } finally {
       setLoading(false);
+      console.log("✅ Hoàn thành load dữ liệu");
     }
   };
 
@@ -198,6 +272,41 @@ function Overview() {
           <div className="tutor-email">{tutorId}@hcmut.edu.vn</div>
         </div>
         <h2 className="main-title">Tổng quan</h2>
+
+        {/* Thông báo chào mừng cho tutor mới */}
+        {stats.totalSlots === 0 && stats.upcomingSessions === 0 && stats.completedSessions === 0 && (
+          <div style={{
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            color: "#fff",
+            padding: 20,
+            borderRadius: 12,
+            marginBottom: 30,
+            boxShadow: "0 4px 6px rgba(0,0,0,0.1)"
+          }}>
+            <h3 style={{ margin: "0 0 10px 0", fontSize: 18, display: "flex", alignItems: "center", gap: 10 }}>
+              <FaChalkboardTeacher /> Chào mừng đến với hệ thống Tutor!
+            </h3>
+            <p style={{ margin: 0, fontSize: 14, opacity: 0.95 }}>
+              Bạn đã được phê duyệt làm Tutor. Hãy bắt đầu bằng cách tạo lịch rảnh để sinh viên có thể đăng ký buổi tư vấn với bạn.
+            </p>
+            <button
+              onClick={() => navigate("/tutor/schedule")}
+              style={{
+                marginTop: 15,
+                padding: "10px 20px",
+                background: "#fff",
+                color: "#667eea",
+                border: "none",
+                borderRadius: 8,
+                cursor: "pointer",
+                fontSize: 14,
+                fontWeight: 600
+              }}
+            >
+              Tạo lịch rảnh đầu tiên
+            </button>
+          </div>
+        )}
 
         {/* Thống kê tổng quan */}
         <div style={{
@@ -304,8 +413,12 @@ function Overview() {
               </div>
             </div>
             {upcomingSessions.length === 0 ? (
-              <div style={{ textAlign: "center", padding: 20, color: "#64748b" }}>
-                <p>Bạn chưa có buổi tư vấn nào sắp diễn ra.</p>
+              <div style={{ textAlign: "center", padding: 30, color: "#64748b" }}>
+                <FaCalendarAlt style={{ fontSize: 32, color: "#cbd5e1", marginBottom: 10 }} />
+                <p style={{ margin: 0, fontSize: 14 }}>Bạn chưa có buổi tư vấn nào sắp diễn ra.</p>
+                <p style={{ margin: "5px 0 0 0", fontSize: 12, color: "#94a3b8" }}>
+                  Tạo lịch rảnh để bắt đầu nhận đăng ký từ sinh viên.
+                </p>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -366,8 +479,12 @@ function Overview() {
               </div>
             </div>
             {recentReviews.length === 0 ? (
-              <div style={{ textAlign: "center", padding: 20, color: "#64748b" }}>
-                <p>Bạn chưa nhận được phản hồi nào từ sinh viên.</p>
+              <div style={{ textAlign: "center", padding: 30, color: "#64748b" }}>
+                <FaStar style={{ fontSize: 32, color: "#cbd5e1", marginBottom: 10 }} />
+                <p style={{ margin: 0, fontSize: 14 }}>Bạn chưa nhận được phản hồi nào từ sinh viên.</p>
+                <p style={{ margin: "5px 0 0 0", fontSize: 12, color: "#94a3b8" }}>
+                  Phản hồi sẽ xuất hiện sau khi sinh viên đánh giá các buổi tư vấn đã hoàn thành.
+                </p>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

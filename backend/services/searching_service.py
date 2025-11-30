@@ -58,17 +58,50 @@ class SearchingService:
                     continue
             
             # 2. Lọc theo khoa - CHỈ áp dụng nếu có tiêu chí khoa
+            # Hỗ trợ partial match (tìm kiếm linh hoạt)
+            # CHỈ kiểm tra trong profile.khoa, không kiểm tra major (vì khoa và major khác nhau)
             if criteria.khoa:
                 if not tutor_profile:
-                    continue  # Không có profile thì bỏ qua
-                if criteria.khoa.lower() not in tutor_profile.get("khoa", "").lower():
-                    continue
+                    continue  # Không có profile thì không có thông tin khoa, bỏ qua
+                
+                khoa_input = criteria.khoa.lower().strip()
+                khoa_profile = tutor_profile.get("khoa", "").lower().strip()
+                
+                if not khoa_profile:
+                    continue  # Profile không có thông tin khoa, bỏ qua
+                
+                # Loại bỏ các từ phổ biến không quan trọng
+                stop_words = ["khoa", "và", "kỹ", "thuật", "bộ", "môn", "công", "nghệ"]
+                
+                # Lấy các từ quan trọng từ input (loại bỏ stop words và từ ngắn)
+                input_words = [w for w in khoa_input.split() 
+                              if len(w) > 2 and w not in stop_words]
+                
+                # Kiểm tra substring trước (nếu input là substring của profile)
+                if khoa_input in khoa_profile:
+                    # Match thành công - input là substring của profile
+                    pass
+                # Kiểm tra xem tất cả các từ quan trọng của input có trong profile không
+                elif input_words and all(input_word in khoa_profile for input_word in input_words):
+                    # Match thành công - tất cả từ quan trọng của input đều có trong profile
+                    pass
+                else:
+                    continue  # Không match, bỏ qua tutor này
             
             # 3. Lọc theo chuyên môn - CHỈ áp dụng nếu có tiêu chí chuyên môn
+            # Hỗ trợ partial match và tìm trong danh sách linh_vuc_chuyen_mon
             if criteria.chuyen_mon:
                 if not tutor_profile:
                     continue  # Không có profile thì bỏ qua
-                if criteria.chuyen_mon.lower() not in tutor_profile.get("chuyen_mon", "").lower():
+                chuyen_mon_input = criteria.chuyen_mon.lower().strip()
+                chuyen_mon_profile = tutor_profile.get("chuyen_mon", "").lower().strip()
+                linh_vuc = [lv.lower().strip() for lv in tutor_profile.get("linh_vuc_chuyen_mon", [])]
+                # Kiểm tra trong chuyen_mon hoặc linh_vuc_chuyen_mon
+                found = (chuyen_mon_input in chuyen_mon_profile or chuyen_mon_profile in chuyen_mon_input or
+                        any(chuyen_mon_input in lv or lv in chuyen_mon_input for lv in linh_vuc) or
+                        any(word in chuyen_mon_profile or any(word in lv for lv in linh_vuc) 
+                            for word in chuyen_mon_input.split() if len(word) > 2))
+                if not found:
                     continue
             
             # 4. Lọc theo môn học (tags) - tìm kiếm partial match - CHỈ áp dụng nếu có tiêu chí môn học

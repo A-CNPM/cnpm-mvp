@@ -153,7 +153,15 @@ function Header({ role }) {
           </span>
           {showMenu && (
             <div className="dropdown-menu">
-              <div className="dropdown-item active" onClick={handleProfileClick}>Hồ sơ cá nhân</div>
+              {(() => {
+                const currentRole = localStorage.getItem("role");
+                if (currentRole !== "Admin") {
+                  return (
+                    <div className="dropdown-item active" onClick={handleProfileClick}>Hồ sơ cá nhân</div>
+                  );
+                }
+                return null;
+              })()}
               {(() => {
                 const currentRole = localStorage.getItem("role");
                 if (currentRole === "Admin") {

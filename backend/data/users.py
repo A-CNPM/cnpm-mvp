@@ -4,31 +4,36 @@ fake_users_db = {
         "username": "a.nguyen",
         "full_name": "Nguyen Van A",
         "role": "Mentee",
-        "password": "123456"
+        "password": "123456",
+        "email": "a.nguyen@hcmut.edu.vn"
     },
     "b.levan": {
         "username": "b.levan",
         "full_name": "Tran Thi B",
         "role": "Mentee",
-        "password": "123456"
+        "password": "123456",
+        "email": "b.levan@hcmut.edu.vn"
     },
     "c.tran": {
         "username": "c.tran",
         "full_name": "Le Van C",
         "role": "Mentee",
-        "password": "123456"
+        "password": "123456",
+        "email": "c.tran@hcmut.edu.vn"
     },
     "d.pham": {
         "username": "d.pham",
         "full_name": "Pham Thi D",
         "role": "Mentee",
-        "password": "123456"
+        "password": "123456",
+        "email": "d.pham@hcmut.edu.vn"
     },
     "e.hoang": {
         "username": "e.hoang",
         "full_name": "Hoang Van E",
         "role": ["Mentee", "Tutor"],  # Đã được phê duyệt làm tutor
-        "password": "123456"
+        "password": "123456",
+        "email": "e.hoang@hcmut.edu.vn"
     },
     # Tutor only (có thể đăng nhập bằng email hoặc username)
     "b.tutor": {

@@ -127,23 +127,38 @@ class AvailableSlotService:
             if slot["tutor_id"] != tutor_id:
                 continue
             
-            # Kiểm tra và tự động chuyển thành session nếu đạt ngưỡng sau 60 giây
+            # Bỏ qua các slot đã chuyển thành session (chỉ hiển thị lịch rảnh chưa trở thành session)
+            if slot.get("status") == "Đã chuyển thành session":
+                continue
+            
+            # Kiểm tra và tự động xóa/chuyển thành session sau 60 giây
             if slot.get("status") == "Mở đăng ký":
                 registered_count = len(slot.get("registered_participants", []))
                 min_participants = slot.get("min_participants", 1)
                 
-                # Nếu đạt ngưỡng tối thiểu, kiểm tra thời gian
-                if registered_count >= min_participants:
-                    # Lấy thời gian đăng ký đầu tiên (người đăng ký đầu tiên)
-                    registration_times = slot.get("registration_times", {})
-                    if registration_times:
-                        first_registration_time = min(registration_times.values())
-                        try:
-                            first_registered_at = datetime.fromisoformat(first_registration_time)
-                            time_diff = (now - first_registered_at).total_seconds()
+                # Kiểm tra thời gian từ khi tạo slot
+                created_at_str = slot.get("created_at")
+                if created_at_str:
+                    try:
+                        created_at = datetime.fromisoformat(created_at_str)
+                        time_since_creation = (now - created_at).total_seconds()
+                        
+                        # Nếu đã quá 60 giây kể từ khi tạo slot
+                        if time_since_creation > 60:
+                            # Nếu không đạt ngưỡng tối thiểu, XÓA slot
+                            if registered_count < min_participants:
+                                # Gửi thông báo cho những người đã đăng ký (nếu có)
+                                for participant_id in slot.get("registered_participants", []):
+                                    self._send_slot_cancelled_notification(participant_id, slot)
+                                
+                                # Xóa slot
+                                slot_id = slot.get("slot_id")
+                                if slot_id in fake_available_slots_db:
+                                    del fake_available_slots_db[slot_id]
+                                continue  # Bỏ qua slot này
                             
-                            # Nếu đã quá 60 giây kể từ lần đăng ký đầu tiên, tự động chuyển thành session
-                            if time_diff > 60:
+                            # Nếu đạt ngưỡng tối thiểu, chuyển thành session
+                            elif registered_count >= min_participants:
                                 # Kiểm tra xem đã tạo session chưa
                                 slot_id = slot.get("slot_id")
                                 existing_session = None
@@ -181,9 +196,11 @@ class AvailableSlotService:
                                 # Cập nhật status slot
                                 slot["status"] = "Đã chuyển thành session"
                                 slot["closed_at"] = datetime.now().isoformat()
-                        except:
-                            # Nếu không parse được datetime, bỏ qua
-                            pass
+                                # Bỏ qua slot này vì đã chuyển thành session
+                                continue
+                    except:
+                        # Nếu không parse được datetime, bỏ qua
+                        pass
             
             # Lọc theo status nếu có
             if status and slot.get("status") != status:
@@ -491,8 +508,8 @@ class AvailableSlotService:
         notification_data = CreateNotification(
             user_id=user_id,
             type="slot_cancelled",
-            title="Đã hủy lịch rảnh",
-            message=f"Bạn đã hủy lịch rảnh với tutor {tutor_name}.",
+            title="Lịch rảnh đã bị hủy",
+            message=f"Lịch rảnh '{slot.get('topic', 'Buổi tư vấn')}' với tutor {tutor_name} đã bị hủy do không đạt đủ số lượng tối thiểu sau 60 giây.",
             related_id=slot.get("slot_id"),
             action_url="/mentee/meeting"
         )
@@ -534,7 +551,7 @@ class AvailableSlotService:
         notification_service.create_notification(notification_data)
     
     def update_slot(self, data: UpdateAvailableSlot) -> Dict:
-        """Tutor cập nhật lịch rảnh (thời gian, hình thức, số lượng, địa điểm)"""
+        """Tutor cập nhật lịch rảnh (thời gian, hình thức, số lượng, địa điểm) - chỉ gửi thông báo nếu đã có người đăng ký VÀ quá 1 phút sau khi tạo"""
         slot = fake_available_slots_db.get(data.slot_id)
         if not slot:
             return {"success": False, "message": "Lịch rảnh không tồn tại"}
@@ -542,10 +559,14 @@ class AvailableSlotService:
         if slot["tutor_id"] != data.tutor_id:
             return {"success": False, "message": "Bạn không có quyền chỉnh sửa lịch rảnh này"}
         
-        # Kiểm tra nếu đã có người đăng ký, cần gửi thông báo và chờ phản hồi
+        # Kiểm tra xem có người đăng ký không và đã quá 1 phút sau khi tạo chưa
         has_registrations = len(slot.get("registered_participants", [])) > 0
+        created_at = datetime.fromisoformat(slot.get("created_at", datetime.now().isoformat()))
+        time_since_creation = (datetime.now() - created_at).total_seconds()
+        within_one_minute = time_since_creation <= 60
         
-        if has_registrations:
+        # Chỉ gửi thông báo nếu đã có người đăng ký VÀ quá 1 phút sau khi tạo
+        if has_registrations and not within_one_minute:
             # Tạo change request và gửi thông báo
             change_request_id = f"CHANGE{str(uuid.uuid4())[:8].upper()}"
             old_data = {
@@ -614,7 +635,7 @@ class AvailableSlotService:
         return self.close_slot(CloseSlotRequest(slot_id=data.slot_id, tutor_id=data.tutor_id))
     
     def cancel_slot(self, data: CancelSlotRequest) -> Dict:
-        """Tutor hủy slot"""
+        """Tutor hủy slot - chỉ gửi thông báo nếu đã có người đăng ký VÀ quá 1 phút sau khi tạo"""
         slot = fake_available_slots_db.get(data.slot_id)
         if not slot:
             return {"success": False, "message": "Lịch rảnh không tồn tại"}
@@ -622,11 +643,19 @@ class AvailableSlotService:
         if slot["tutor_id"] != data.tutor_id:
             return {"success": False, "message": "Bạn không có quyền hủy lịch rảnh này"}
         
-        # Gửi thông báo cho tất cả participants
-        for participant_id in slot.get("registered_participants", []):
-            self._send_slot_cancelled_by_tutor_notification(participant_id, slot, data.reason)
+        # Kiểm tra xem có người đăng ký không và đã quá 1 phút sau khi tạo chưa
+        has_registrations = len(slot.get("registered_participants", [])) > 0
+        created_at = datetime.fromisoformat(slot.get("created_at", datetime.now().isoformat()))
+        time_since_creation = (datetime.now() - created_at).total_seconds()
+        within_one_minute = time_since_creation <= 60
         
-        # Xóa slot
+        # Chỉ gửi thông báo nếu đã có người đăng ký VÀ quá 1 phút sau khi tạo
+        if has_registrations and not within_one_minute:
+            # Gửi thông báo cho tất cả participants
+            for participant_id in slot.get("registered_participants", []):
+                self._send_slot_cancelled_by_tutor_notification(participant_id, slot, data.reason)
+        
+        # Xóa slot (luôn luôn xóa, không cần thông báo nếu trong vòng 1 phút)
         del fake_available_slots_db[data.slot_id]
         
         return {

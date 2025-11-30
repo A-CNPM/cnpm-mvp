@@ -268,17 +268,41 @@ function FindTutor() {
           <h2 className="main-title">Tìm kiếm và lựa chọn Tutor</h2>
           
           <div className="search-bar-row">
-            <input 
-              className="search-bar" 
-              placeholder="Tìm tutor theo tên, chuyên môn..." 
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && fetchTutors()}
-              style={{ 
-                backgroundColor: "#e5e7eb",
-                color: "black" 
-               }}
-            />
+            <div style={{ display: "flex", flex: 1, gap: 10 }}>
+              <input 
+                className="search-bar" 
+                placeholder="Tìm tutor theo tên, chuyên môn..." 
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    fetchTutors();
+                  }
+                }}
+                style={{ 
+                  backgroundColor: "#e5e7eb",
+                  color: "black",
+                  flex: 1
+                }}
+              />
+              <button 
+                className="filter-btn" 
+                onClick={fetchTutors}
+                style={{ 
+                  backgroundColor: "#4f46e5",
+                  color: "white",
+                  padding: "10px 20px",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  whiteSpace: "nowrap"
+                }}
+              >
+                Tìm kiếm
+              </button>
+            </div>
             <button 
               className="filter-btn" 
               onClick={() => setShowFilters(!showFilters)}
@@ -286,7 +310,6 @@ function FindTutor() {
             >
               <FaFilter style={{marginRight: 5}}/> Bộ lọc
             </button>
-            <button className="filter-btn" onClick={fetchTutors}>Tìm kiếm</button>
             <button 
               className="ai-btn" 
               onClick={handleAIMatching}
@@ -316,6 +339,12 @@ function FindTutor() {
                   placeholder="VD: Khoa học máy tính"
                   value={filterKhoa}
                   onChange={(e) => setFilterKhoa(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      fetchTutors();
+                    }
+                  }}
                   style={{width: "100%", padding: "8px", borderRadius: 6, border: "1px solid #cbd5e1"}}
                 />
               </div>
@@ -326,6 +355,12 @@ function FindTutor() {
                   placeholder="VD: DSA, Web, Python"
                   value={filterMonHoc}
                   onChange={(e) => setFilterMonHoc(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      fetchTutors();
+                    }
+                  }}
                   style={{width: "100%", padding: "8px", borderRadius: 6, border: "1px solid #cbd5e1"}}
                 />
               </div>
@@ -336,16 +371,12 @@ function FindTutor() {
                   placeholder="VD: Công nghệ phần mềm"
                   value={filterChuyenMon}
                   onChange={(e) => setFilterChuyenMon(e.target.value)}
-                  style={{width: "100%", padding: "8px", borderRadius: 6, border: "1px solid #cbd5e1"}}
-                />
-              </div>
-              <div>
-                <label style={{fontSize: 12, fontWeight: "bold", marginBottom: 4, color: "#64748b", display: "block"}}>THỜI GIAN RẢNH</label>
-                <input
-                  type="text"
-                  placeholder="VD: T2, 19:00"
-                  value={filterThoiGian}
-                  onChange={(e) => setFilterThoiGian(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      fetchTutors();
+                    }
+                  }}
                   style={{width: "100%", padding: "8px", borderRadius: 6, border: "1px solid #cbd5e1"}}
                 />
               </div>
@@ -359,17 +390,39 @@ function FindTutor() {
                   placeholder="VD: 4.0"
                   value={filterMinRating}
                   onChange={(e) => setFilterMinRating(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      fetchTutors();
+                    }
+                  }}
                   style={{width: "100%", padding: "8px", borderRadius: 6, border: "1px solid #cbd5e1"}}
                 />
               </div>
               <div style={{display: "flex", alignItems: "flex-end", gap: 10}}>
                 <button
+                  onClick={fetchTutors}
+                  style={{
+                    padding: "8px 20px",
+                    background: "#4f46e5",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    whiteSpace: "nowrap"
+                  }}
+                >
+                  Lọc
+                </button>
+                <button
                   onClick={() => {
                     setFilterKhoa("");
                     setFilterMonHoc("");
                     setFilterChuyenMon("");
-                    setFilterThoiGian("");
                     setFilterMinRating("");
+                    fetchTutors();
                   }}
                   style={{
                     padding: "8px 16px",

@@ -30,10 +30,14 @@ function Login() {
     setMessage("");
     setMessageType("");
     
-    // Validate email format cho Tutor và Admin
-    if (role === "Tutor" || role === "Admin") {
+    // Nếu không có @, tự động thêm @hcmut.edu.vn (hỗ trợ cả username và email)
+    let email = username;
+    if (!username.includes("@")) {
+      email = `${username}@hcmut.edu.vn`;
+    } else {
+      // Validate email format nếu có @
       if (!username.includes("@hcmut.edu.vn") && !username.includes("@hcmut.vn")) {
-        setMessage(`${role} phải đăng nhập bằng email trường (@hcmut.edu.vn hoặc @hcmut.vn)`);
+        setMessage("Email phải là email trường (@hcmut.edu.vn hoặc @hcmut.vn)");
         setMessageType("error");
         return;
       }
@@ -42,8 +46,8 @@ function Login() {
     try {
       let data;
       if (role === "Admin") {
-        // Đăng nhập Admin
-        data = await AdminService.login(username, password);
+        // Đăng nhập Admin (sử dụng email đã được xử lý)
+        data = await AdminService.login(email, password);
         localStorage.setItem("access_token", data.access_token);
         localStorage.setItem("role", data.role);
         localStorage.setItem("username", data.username);
@@ -52,8 +56,8 @@ function Login() {
         localStorage.setItem("khoa", data.khoa || "");
         localStorage.setItem("bo_mon", data.bo_mon || "");
       } else {
-        // Đăng nhập Mentee hoặc Tutor
-        data = await loginApi(username, password, role);
+        // Đăng nhập Mentee hoặc Tutor (sử dụng email đã được xử lý)
+        data = await loginApi(email, password, role);
         localStorage.setItem("access_token", data.access_token);
         localStorage.setItem("role", data.role);
         localStorage.setItem("username", data.username);
@@ -122,7 +126,7 @@ function Login() {
 
         <div className="login-field-group">
           <label className="login-label" htmlFor="username">
-            {role === "Tutor" || role === "Admin" ? "Email trường (HCMUT_SSO)" : "Tên đăng nhập"}
+            Tên đăng nhập
           </label>
           <div style={{ position: "relative" }}>
             {role === "Admin" ? (
@@ -148,21 +152,19 @@ function Login() {
             )}
             <input
               className="login-input"
-              type={role === "Tutor" || role === "Admin" ? "email" : "text"}
+              type="text"
               id="username"
               name="username"
               value={username}
               onChange={e => setUsername(e.target.value)}
-              placeholder={role === "Tutor" || role === "Admin" ? "username@hcmut.edu.vn" : "Nhập tên đăng nhập"}
+              placeholder="username hoặc username@hcmut.edu.vn"
               style={{ paddingLeft: "40px" }}
               required
             />
           </div>
-          {(role === "Tutor" || role === "Admin") && (
-            <p style={{ fontSize: "11px", color: "#64748b", marginTop: "5px", marginBottom: 0 }}>
-              Sử dụng tài khoản email trường để đăng nhập với vai trò {role}.
-            </p>
-          )}
+          <p style={{ fontSize: "11px", color: "#64748b", marginTop: "5px", marginBottom: 0 }}>
+            Nhập username hoặc tài khoản HCMUT_SSO (@hcmut.edu.vn). Hệ thống sẽ tự động xử lý.
+          </p>
         </div>
 
         <div className="login-field-group">
@@ -191,7 +193,7 @@ function Login() {
         </div>
 
         <button type="submit" className="login-btn">
-          Đăng nhập {role === "Tutor" ? "với HCMUT_SSO" : ""}
+          Đăng nhập với HCMUT_SSO
         </button>
         
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "15px" }}>

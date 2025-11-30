@@ -65,6 +65,15 @@ function Meeting() {
     min_participants: 2
   });
   
+  // State cho session cancel/reschedule form
+  const [sessionCancelReason, setSessionCancelReason] = useState("");
+  const [sessionRescheduleForm, setSessionRescheduleForm] = useState({
+    new_start_time: "",
+    new_end_time: "",
+    new_location: "",
+    reason: ""
+  });
+  
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
 
@@ -72,11 +81,11 @@ function Meeting() {
     loadSlots();
     loadSessions();
     
-    // Tự động refresh mỗi 10 giây để kiểm tra slot đã đạt ngưỡng chưa
+    // Tự động refresh mỗi 30 giây để kiểm tra slot đã đạt ngưỡng chưa (giảm tần suất để tối ưu performance)
     const interval = setInterval(() => {
       loadSlots();
       loadSessions();
-    }, 10000);
+    }, 30000); // Tăng từ 10s lên 30s
     
     return () => clearInterval(interval);
   }, [tutorId]);
@@ -1217,7 +1226,7 @@ function Meeting() {
                         borderRadius: 8
                       }}
                     >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: 8 }}>
+                      <div style={{ marginBottom: 8 }}>
                         <div style={{ fontSize: 12, color: "#64748b" }}>
                           {new Date(note.created_at).toLocaleString("vi-VN")}
                           {note.is_draft && (
@@ -1226,26 +1235,6 @@ function Meeting() {
                             </span>
                           )}
                         </div>
-                        <button
-                          onClick={() => {
-                            setNoteForm({
-                              content: note.content,
-                              is_draft: note.is_draft
-                            });
-                            setShowNoteModal(true);
-                          }}
-                          style={{
-                            padding: "4px 8px",
-                            background: "transparent",
-                            color: "#6366f1",
-                            border: "1px solid #6366f1",
-                            borderRadius: 4,
-                            fontSize: 11,
-                            cursor: "pointer"
-                          }}
-                        >
-                          <FaEdit /> Chỉnh sửa
-                        </button>
                       </div>
                       <div style={{ fontSize: 14, color: "#1e293b", whiteSpace: "pre-wrap" }}>
                         {note.content}

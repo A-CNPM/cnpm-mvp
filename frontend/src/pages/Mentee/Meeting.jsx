@@ -1,4 +1,4 @@
-import { FaUser, FaBook, FaGlobe, FaCalendar, FaPaperclip, FaFilter, FaCheckCircle, FaTimesCircle, FaEdit, FaChartLine, FaArrowUp, FaArrowDown } from "react-icons/fa";
+import { FaUser, FaBook, FaGlobe, FaCalendar, FaPaperclip, FaFilter, FaCheckCircle, FaTimesCircle, FaEdit, FaChartLine, FaArrowUp, FaArrowDown, FaExclamationTriangle } from "react-icons/fa";
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../../assets/css/style.css";
@@ -18,6 +18,8 @@ function Meeting() {
   const [loadingResources, setLoadingResources] = useState(false);
   const [sessionProgressTrackings, setSessionProgressTrackings] = useState([]);
   const [loadingProgress, setLoadingProgress] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState([]);
+  const [loadingPendingChanges, setLoadingPendingChanges] = useState(false);
   
   // --- STATE DỮ LIỆU ---
   const [meetings, setMeetings] = useState([]);
@@ -118,6 +120,13 @@ function Meeting() {
       }
     };
     fetchData();
+    
+    // Tự động refresh mỗi 10 giây để kiểm tra slot đã chuyển thành session chưa
+    const interval = setInterval(() => {
+      fetchData();
+    }, 10000); // Refresh mỗi 10 giây
+    
+    return () => clearInterval(interval);
   }, [menteeId]);
 
   // --- EFFECT: Chạy khi vào trang hoặc khi thay đổi bộ lọc ---
@@ -158,9 +167,90 @@ function Meeting() {
       } finally {
         setLoadingProgress(false);
       }
+      
+      // Lấy pending changes của session
+      setLoadingPendingChanges(true);
+      try {
+        const sessionDetails = await SessionService.getSessionDetail(meeting.sessionID);
+        console.log("Session details:", sessionDetails);
+        if (sessionDetails && sessionDetails.session) {
+          console.log("Session pending_changes:", sessionDetails.session.pending_changes);
+          if (sessionDetails.session.pending_changes) {
+            // Lọc chỉ lấy pending changes mà mentee chưa phản hồi
+            const pending = Object.values(sessionDetails.session.pending_changes).filter(change => {
+              return change.status === "pending" && 
+                     (!change.responses || !change.responses[menteeId]);
+            });
+            console.log("Filtered pending changes:", pending);
+            setPendingChanges(pending);
+          } else {
+            setPendingChanges([]);
+          }
+        } else {
+          setPendingChanges([]);
+        }
+      } catch (error) {
+        console.error("Lỗi khi lấy pending changes:", error);
+        setPendingChanges([]);
+      } finally {
+        setLoadingPendingChanges(false);
+      }
     } else {
       setSessionResources([]);
       setSessionProgressTrackings([]);
+      setPendingChanges([]);
+    }
+  };
+  
+  // Handler phản hồi thay đổi session
+  const handleRespondToChange = async (changeRequestId, response) => {
+    try {
+      setMessage("");
+      const result = await SessionService.respondToSessionChange(changeRequestId, menteeId, response);
+      if (result.success) {
+        setMessage(response === "accept" ? "Đã đồng ý thay đổi" : "Đã từ chối thay đổi");
+        // Reload pending changes và session details
+        if (detailData && detailData.sessionID) {
+          setLoadingPendingChanges(true);
+          try {
+            const sessionDetails = await SessionService.getSessionDetail(detailData.sessionID);
+            console.log("Reloaded session details:", sessionDetails);
+            if (sessionDetails && sessionDetails.session) {
+              // Cập nhật detailData với thông tin mới (nếu có thay đổi)
+              if (result.session) {
+                setDetailData({
+                  ...detailData,
+                  ...result.session,
+                  time: result.session.startTime + " - " + result.session.endTime,
+                  link: result.session.location
+                });
+              }
+              // Reload pending changes
+              if (sessionDetails.session.pending_changes) {
+                const pending = Object.values(sessionDetails.session.pending_changes).filter(change => {
+                  return change.status === "pending" && 
+                         (!change.responses || !change.responses[menteeId]);
+                });
+                console.log("Reloaded pending changes:", pending);
+                setPendingChanges(pending);
+              } else {
+                setPendingChanges([]);
+              }
+            }
+          } catch (error) {
+            console.error("Lỗi khi reload pending changes:", error);
+          } finally {
+            setLoadingPendingChanges(false);
+          }
+        }
+        // Đóng thông báo sau 2s
+        setTimeout(() => {
+          setMessage("");
+        }, 2000);
+      }
+    } catch (error) {
+      console.error("Lỗi khi phản hồi thay đổi:", error);
+      setMessage(error.message || "Phản hồi thất bại");
     }
   };
 
@@ -286,7 +376,7 @@ function Meeting() {
     return myRegisteredSessions.includes(sessionId);
   };
 
-  // --- HELPER: Kiểm tra có thể hủy/đổi lịch rảnh không (trong vòng 1 phút sau khi đăng ký) ---
+  // --- HELPER: Kiểm tra có thể hủy/đổi lịch rảnh không (trong vòng 30 giây sau khi đăng ký) ---
   const canCancelOrChangeSlot = (slot) => {
     // Nếu đã chuyển thành session thì không thể hủy/đổi
     if (slot.status === "Đã chuyển thành session") {
@@ -302,8 +392,8 @@ function Meeting() {
       const registeredAt = new Date(slot.registered_at);
       const now = new Date();
       const diffSeconds = (now - registeredAt) / 1000;
-      // Trong vòng 1 phút (60 giây) sau khi đăng ký vẫn có thể hủy/đổi
-      return diffSeconds <= 60;
+      // Trong vòng 30 giây sau khi đăng ký vẫn có thể hủy/đổi
+      return diffSeconds <= 30;
     } catch {
       return true;
     }
@@ -472,11 +562,7 @@ function Meeting() {
                               <div style={{ fontSize: 14, color: "#64748b" }}>
                                 Đã đăng ký: <strong>{currentCount}/{slot.max_participants}</strong>
                               </div>
-                              {slot.status === "Đã chuyển thành session" && (
-                                <div style={{ padding: 8, background: "#dbeafe", borderRadius: 6, fontSize: 13, color: "#1e40af" }}>
-                                  <FaCheckCircle style={{ marginRight: 5 }} /> Đã chuyển thành buổi tư vấn
-                                </div>
-                              )}
+                              {/* Không hiển thị slot đã chuyển thành session (đã được lọc bỏ ở backend) */}
                             </div>
                           </div>
                           <div style={{ display: "flex", gap: 10 }}>
@@ -515,7 +601,7 @@ function Meeting() {
                                 </button>
                               </>
                             )}
-                            {/* Khi đã quá 1 phút sau khi đăng ký nhưng vẫn là "Mở đăng ký" */}
+                            {/* Khi đã quá 30 giây sau khi đăng ký nhưng vẫn là "Mở đăng ký" */}
                             {slot.status === "Mở đăng ký" && !canCancelOrChangeSlot(slot) && (
                               <div style={{
                                 padding: "8px 12px",
@@ -524,7 +610,7 @@ function Meeting() {
                                 borderRadius: 6,
                                 fontSize: 12
                               }}>
-                                Không thể hủy/đổi (đã quá 1 phút sau khi đăng ký)
+                                Không thể hủy/đổi (đã quá 30 giây sau khi đăng ký)
                               </div>
                             )}
                             {/* Khi đã chuyển thành session - không có quyền hủy/đổi */}
@@ -862,6 +948,106 @@ function Meeting() {
                 )}
               </div>
               
+              {/* Pending Changes - Yêu cầu thay đổi từ Tutor */}
+              {detailData.sessionID && (
+                <div style={{ gridColumn: "1 / -1", marginTop: 15 }}>
+                  <label style={{fontSize: "13px", fontWeight: 600, color: "#475569", marginBottom: 8, display: "block"}}>
+                    Yêu cầu thay đổi từ Tutor
+                  </label>
+                  {loadingPendingChanges ? (
+                    <div style={{padding: 12, textAlign: "center", color: "#64748b", fontSize: 13}}>
+                      Đang tải yêu cầu thay đổi...
+                    </div>
+                  ) : pendingChanges.length === 0 ? (
+                    <div style={{padding: 12, background: "#f8fafc", borderRadius: 6, border: "1px dashed #cbd5e1", textAlign: "center"}}>
+                      <span style={{color: "#94a3b8", fontSize: 13}}>Không có yêu cầu thay đổi nào</span>
+                    </div>
+                  ) : (
+                    <div style={{display: "flex", flexDirection: "column", gap: 12}}>
+                      {pendingChanges.map((change) => (
+                        <div
+                          key={change.change_request_id}
+                          style={{
+                            padding: 16,
+                            background: "#fef3c7",
+                            borderRadius: 8,
+                            border: "1px solid #fbbf24"
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                            <FaExclamationTriangle style={{ color: "#f59e0b" }} />
+                            <span style={{ fontWeight: 600, color: "#1e293b", fontSize: 14 }}>
+                              {change.type === "cancel" ? "Yêu cầu hủy buổi tư vấn" : "Yêu cầu đổi lịch buổi tư vấn"}
+                            </span>
+                          </div>
+                          
+                          {change.type === "reschedule" && change.old_data && change.new_data && (
+                            <div style={{ marginBottom: 12, fontSize: 13, color: "#374151" }}>
+                              <div style={{ marginBottom: 6 }}>
+                                <strong>Thời gian cũ:</strong> {change.old_data.startTime} - {change.old_data.endTime}
+                              </div>
+                              <div style={{ marginBottom: 6 }}>
+                                <strong>Thời gian mới:</strong> {change.new_data.startTime} - {change.new_data.endTime}
+                              </div>
+                              {change.old_data.location !== change.new_data.location && (
+                                <div style={{ marginBottom: 6 }}>
+                                  <strong>Địa điểm mới:</strong> {change.new_data.location || change.old_data.location}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          {change.reason && (
+                            <div style={{ marginBottom: 12, fontSize: 13, color: "#374151", fontStyle: "italic" }}>
+                              <strong>Lý do:</strong> {change.reason}
+                            </div>
+                          )}
+                          
+                          <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>
+                            Thời gian: {new Date(change.created_at).toLocaleString("vi-VN")}
+                          </div>
+                          
+                          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                            <button
+                              onClick={() => handleRespondToChange(change.change_request_id, "reject")}
+                              style={{
+                                padding: "8px 16px",
+                                background: "#ef4444",
+                                color: "#fff",
+                                border: "none",
+                                borderRadius: 6,
+                                fontSize: 13,
+                                cursor: "pointer",
+                                fontWeight: 500
+                              }}
+                            >
+                              <FaTimesCircle style={{ marginRight: 6 }} />
+                              Từ chối
+                            </button>
+                            <button
+                              onClick={() => handleRespondToChange(change.change_request_id, "accept")}
+                              style={{
+                                padding: "8px 16px",
+                                background: "#10b981",
+                                color: "#fff",
+                                border: "none",
+                                borderRadius: 6,
+                                fontSize: 13,
+                                cursor: "pointer",
+                                fontWeight: 500
+                              }}
+                            >
+                              <FaCheckCircle style={{ marginRight: 6 }} />
+                              Đồng ý
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              
               {/* Ghi nhận tiến bộ từ Tutor */}
               {detailData.sessionID && (
                 <div style={{ gridColumn: "1 / -1", marginTop: 15 }}>
@@ -946,30 +1132,16 @@ function Meeting() {
             <div style={{textAlign: "right", marginTop: 20, display: "flex", gap: 10, justifyContent: "flex-end"}}>
                   {detailData && isRegistered(detailData.sessionID) ? (
                 <>
-                  {canCancel(detailData.startTime) ? (
-                    <button 
-                      className="modal-submit" 
-                      onClick={() => handleCancel(detailData.sessionID)}
-                      style={{
-                        padding: "8px 20px", 
-                        fontSize: "14px",
-                        background: "#ef4444",
-                        color: "#fff"
-                      }} 
-                    >
-                      <FaTimesCircle style={{marginRight: 5}}/> Hủy đăng ký
-                    </button>
-                  ) : (
-                    <div style={{
-                      padding: "8px 16px",
-                      fontSize: "13px",
-                      color: "#f59e0b",
-                      background: "#fef3c7",
-                      borderRadius: 6
-                    }}>
-                      Không thể hủy: Còn dưới 12 giờ trước buổi tư vấn
-                    </div>
-                  )}
+                  {/* Session đã chuyển từ slot (sau 30 giây), không cho phép hủy/thay đổi */}
+                  <div style={{
+                    padding: "8px 16px",
+                    fontSize: "13px",
+                    color: "#64748b",
+                    background: "#f1f5f9",
+                    borderRadius: 6
+                  }}>
+                    Buổi tư vấn đã được xác nhận, không thể hủy hoặc thay đổi
+                  </div>
                 </>
               ) : (
                 detailData && detailData.status !== "Đã hủy" && detailData.status !== "Hoàn thành" && (

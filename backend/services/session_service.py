@@ -17,6 +17,8 @@ from schemas.session import (
 import uuid
 from datetime import datetime, timedelta
 import re
+import time
+import threading
 
 class SessionService:
     
@@ -535,13 +537,17 @@ class SessionService:
             "reason": reason,
             "created_at": datetime.now().isoformat(),
             "responses": {},
-            "status": "pending"
+            "status": "pending",
+            "timeout_at": (datetime.now() + timedelta(minutes=1)).isoformat()  # Timeout sau 1 phút
         }
         
         # Gửi thông báo cho tất cả participants
         participants = session.get("participants", [])
         for participant_id in participants:
             self._send_session_cancel_notification(participant_id, session, reason)
+        
+        # Tự động check timeout sau 1 phút
+        self._schedule_timeout_check(change_request_id, session_id)
         
         return {
             "success": True,
@@ -550,7 +556,7 @@ class SessionService:
         }
     
     def reschedule_session_by_tutor(self, session_id: str, tutor_id: str, new_start_time: str, new_end_time: str, new_location: Optional[str] = None, reason: Optional[str] = None) -> Dict:
-        """Tutor đề xuất đổi lịch session - gửi thông báo cho tất cả participants"""
+        """Tutor thay đổi session - áp dụng thay đổi ngay, sau đó gửi thông báo cho participants"""
         session = fake_sessions_db.get(session_id)
         if not session:
             return {"success": False, "message": "Session không tồn tại"}
@@ -561,21 +567,28 @@ class SessionService:
         if len(session.get("participants", [])) == 0:
             return {"success": False, "message": "Session chưa có người tham gia"}
         
-        # Tạo change request
-        change_request_id = f"CHANGE{str(uuid.uuid4())[:8].upper()}"
+        # Lưu dữ liệu cũ để có thể revert nếu không đạt 50% đồng ý
         old_data = {
             "startTime": session.get("startTime"),
             "endTime": session.get("endTime"),
             "location": session.get("location")
         }
         
+        # ÁP DỤNG THAY ĐỔI NGAY (tạm thời)
+        session["startTime"] = new_start_time
+        session["endTime"] = new_end_time
+        if new_location:
+            session["location"] = new_location
+        
+        # Tạo change request để theo dõi phản hồi
+        change_request_id = f"CHANGE{str(uuid.uuid4())[:8].upper()}"
         if "pending_changes" not in session:
             session["pending_changes"] = {}
         
         session["pending_changes"][change_request_id] = {
             "change_request_id": change_request_id,
             "type": "reschedule",
-            "old_data": old_data,
+            "old_data": old_data,  # Lưu để revert nếu cần
             "new_data": {
                 "startTime": new_start_time,
                 "endTime": new_end_time,
@@ -584,7 +597,8 @@ class SessionService:
             "reason": reason,
             "created_at": datetime.now().isoformat(),
             "responses": {},
-            "status": "pending"
+            "status": "pending",
+            "timeout_at": (datetime.now() + timedelta(minutes=1)).isoformat()  # Timeout sau 1 phút
         }
         
         # Gửi thông báo cho tất cả participants
@@ -592,9 +606,12 @@ class SessionService:
         for participant_id in participants:
             self._send_session_reschedule_notification(participant_id, session, change_request_id, reason)
         
+        # Tự động check timeout sau 1 phút
+        self._schedule_timeout_check(change_request_id, session_id)
+        
         return {
             "success": True,
-            "message": "Đã gửi đề xuất đổi lịch. Đang chờ phản hồi từ sinh viên.",
+            "message": "Đã áp dụng thay đổi và gửi thông báo. Đang chờ phản hồi từ sinh viên.",
             "change_request_id": change_request_id
         }
     
@@ -632,26 +649,26 @@ class SessionService:
                             for participant_id in all_participants:
                                 self._send_session_cancel_confirmed_notification(participant_id, session)
                         elif change_request["type"] == "reschedule":
-                            # Áp dụng thay đổi
-                            new_data = change_request["new_data"]
-                            if "startTime" in new_data:
-                                session["startTime"] = new_data["startTime"]
-                            if "endTime" in new_data:
-                                session["endTime"] = new_data["endTime"]
-                            if "location" in new_data:
-                                session["location"] = new_data["location"]
+                            # Thay đổi đã được áp dụng từ trước, chỉ cần xác nhận
                             session["status"] = "Đã thay đổi"
                             change_request["status"] = "approved"
                             # Gửi thông báo xác nhận đổi lịch
                             for participant_id in all_participants:
                                 self._send_session_reschedule_confirmed_notification(participant_id, session)
                     else:
-                        # Không đạt tỷ lệ, giữ nguyên hoặc hủy
+                        # Không đạt tỷ lệ, giữ nguyên hoặc revert
                         if change_request["type"] == "cancel":
-                            # Nếu không đủ đồng ý hủy, giữ nguyên session
+                            # Nếu không đủ đồng ý hủy, giữ nguyên session (không hủy)
                             change_request["status"] = "rejected"
                         else:
-                            # Nếu không đủ đồng ý đổi lịch, giữ nguyên
+                            # Nếu không đủ đồng ý đổi lịch, REVERT về dữ liệu cũ
+                            old_data = change_request.get("old_data", {})
+                            if "startTime" in old_data:
+                                session["startTime"] = old_data["startTime"]
+                            if "endTime" in old_data:
+                                session["endTime"] = old_data["endTime"]
+                            if "location" in old_data:
+                                session["location"] = old_data["location"]
                             change_request["status"] = "rejected"
                         # Gửi thông báo từ chối
                         for participant_id in all_participants:
@@ -670,32 +687,40 @@ class SessionService:
         from services.notification_service import NotificationService
         from schemas.notification import CreateNotification
         
-        notification_service = NotificationService()
-        notification_data = CreateNotification(
-            user_id=user_id,
-            type="session_cancelled",
-            title="Buổi tư vấn bị hủy",
-            message=f"Buổi tư vấn '{session.get('topic')}' đã bị tutor hủy. Lý do: {reason or 'Không có lý do'}",
-            related_id=session.get("sessionID"),
-            action_url=f"/mentee/meeting"
-        )
-        notification_service.create_notification(notification_data)
+        try:
+            notification_service = NotificationService()
+            notification_data = CreateNotification(
+                user_id=user_id,
+                type="session_cancelled",
+                title="Yêu cầu hủy buổi tư vấn",
+                message=f"Tutor đã yêu cầu hủy buổi tư vấn '{session.get('topic')}'. Lý do: {reason or 'Không có lý do'}. Vui lòng vào trang Buổi tư vấn để phản hồi Đồng ý/Từ chối.",
+                related_id=session.get("sessionID"),
+                action_url=f"/mentee/meeting"
+            )
+            notification_service.create_notification(notification_data)
+            print(f"✅ Đã gửi thông báo hủy session cho user {user_id}, session {session.get('sessionID')}")
+        except Exception as e:
+            print(f"❌ Lỗi khi gửi thông báo hủy session cho user {user_id}: {e}")
     
     def _send_session_reschedule_notification(self, user_id: str, session: Dict, change_request_id: str, reason: Optional[str] = None):
         """Gửi thông báo đề xuất đổi lịch session"""
         from services.notification_service import NotificationService
         from schemas.notification import CreateNotification
         
-        notification_service = NotificationService()
-        notification_data = CreateNotification(
-            user_id=user_id,
-            type="session_reschedule",
-            title="Đề xuất đổi lịch buổi tư vấn",
-            message=f"Tutor đề xuất đổi lịch buổi tư vấn '{session.get('topic')}'. Lý do: {reason or 'Không có lý do'}",
-            related_id=change_request_id,
-            action_url=f"/mentee/meeting"
-        )
-        notification_service.create_notification(notification_data)
+        try:
+            notification_service = NotificationService()
+            notification_data = CreateNotification(
+                user_id=user_id,
+                type="session_reschedule",
+                title="Yêu cầu đổi lịch buổi tư vấn",
+                message=f"Tutor đã thay đổi lịch buổi tư vấn '{session.get('topic')}'. Lý do: {reason or 'Không có lý do'}. Vui lòng vào trang Buổi tư vấn để phản hồi Đồng ý/Từ chối.",
+                related_id=change_request_id,
+                action_url=f"/mentee/meeting"
+            )
+            notification_service.create_notification(notification_data)
+            print(f"✅ Đã gửi thông báo đổi lịch session cho user {user_id}, session {session.get('sessionID')}")
+        except Exception as e:
+            print(f"❌ Lỗi khi gửi thông báo đổi lịch session cho user {user_id}: {e}")
     
     def _send_session_cancel_confirmed_notification(self, user_id: str, session: Dict):
         """Gửi thông báo xác nhận hủy session"""
@@ -744,3 +769,64 @@ class SessionService:
             action_url=f"/mentee/meeting"
         )
         notification_service.create_notification(notification_data)
+    
+    def _schedule_timeout_check(self, change_request_id: str, session_id: str):
+        """Lên lịch kiểm tra timeout cho change request (1 phút)"""
+        def check_timeout():
+            time.sleep(60)  # Đợi 1 phút
+            session = fake_sessions_db.get(session_id)
+            if not session:
+                return
+            
+            if "pending_changes" not in session:
+                return
+            
+            change_request = session["pending_changes"].get(change_request_id)
+            if not change_request or change_request.get("status") != "pending":
+                return
+            
+            # Đã hết thời gian, tự động reject cho những người chưa phản hồi
+            all_participants = session.get("participants", [])
+            for participant_id in all_participants:
+                if participant_id not in change_request.get("responses", {}):
+                    # Mặc định là reject nếu không phản hồi
+                    change_request["responses"][participant_id] = "reject"
+            
+            # Kiểm tra lại tỷ lệ đồng ý
+            accept_count = sum(1 for r in change_request["responses"].values() if r == "accept")
+            total_count = len(all_participants)
+            approval_rate = accept_count / total_count if total_count > 0 else 0
+            
+            if approval_rate >= 0.5:
+                # Đạt tỷ lệ, áp dụng thay đổi
+                if change_request["type"] == "cancel":
+                    session["status"] = "Đã hủy"
+                    change_request["status"] = "approved"
+                    for participant_id in all_participants:
+                        self._send_session_cancel_confirmed_notification(participant_id, session)
+                elif change_request["type"] == "reschedule":
+                    # Thay đổi đã được áp dụng từ trước, chỉ cần xác nhận
+                    change_request["status"] = "approved"
+                    for participant_id in all_participants:
+                        self._send_session_reschedule_confirmed_notification(participant_id, session)
+            else:
+                # Không đạt tỷ lệ
+                if change_request["type"] == "cancel":
+                    change_request["status"] = "rejected"
+                else:
+                    # Revert về dữ liệu cũ
+                    old_data = change_request.get("old_data", {})
+                    if "startTime" in old_data:
+                        session["startTime"] = old_data["startTime"]
+                    if "endTime" in old_data:
+                        session["endTime"] = old_data["endTime"]
+                    if "location" in old_data:
+                        session["location"] = old_data["location"]
+                    change_request["status"] = "rejected"
+                
+                for participant_id in all_participants:
+                    self._send_session_change_rejected_notification(participant_id, session)
+        
+        # Chạy timeout check trong background thread
+        thread = threading.Thread(target=check_timeout, daemon=True)
+        thread.start()
