@@ -1,5 +1,6 @@
 from typing import List, Optional, Dict
 from data.fake_tutors import fake_tutors_db
+from data.profiles import fake_profiles_db
 from schemas.searching import *
 from data.fake_sessions import fake_sessions_db
 from schemas.session import Session
@@ -20,14 +21,119 @@ class AIMatching:
 class SearchingService:
     def search_tutor(self, criteria: SearchCriteria) -> List[Tutor]:
         result = []
-        for t in fake_tutors_db.values():
-            tutor_name = t["full_name"].lower()
-            tutor_major = t["major"].lower()
-            tutor_tag = list(map(str.lower, t["tags"]))
-            if criteria.keyword and not (criteria.keyword.lower() in tutor_name or
-                                     criteria.keyword.lower() in tutor_major or
-                                     criteria.keyword.lower() in tutor_tag):
+        
+        # Kiểm tra xem có bất kỳ tiêu chí nào không
+        has_any_criteria = any([
+            criteria.keyword,
+            criteria.khoa,
+            criteria.chuyen_mon,
+            criteria.mon_hoc,
+            criteria.min_rating,
+            criteria.available_time
+        ])
+        
+        for tutor_id, t in fake_tutors_db.items():
+            # Lấy profile của tutor để kiểm tra khoa, chuyên môn, lịch rảnh
+            tutor_profile = fake_profiles_db.get(tutor_id)
+            
+            # Nếu không có tiêu chí nào, trả về tất cả tutors
+            if not has_any_criteria:
+                result.append(Tutor(**t))
                 continue
+            
+            # 1. Lọc theo keyword (tên, tutorID, email, major, tags) - CHỈ áp dụng nếu có keyword
+            if criteria.keyword:
+                keyword = criteria.keyword.lower()
+                tutor_name = t["full_name"].lower()
+                tutor_id_lower = t.get("tutorID", "").lower()
+                tutor_email = t.get("email", "").lower()
+                tutor_major = t["major"].lower()
+                tutor_tag = list(map(str.lower, t.get("tags", [])))
+                # Tìm trong tên, tutorID, email, major, tags
+                if not (keyword in tutor_name or 
+                       keyword in tutor_id_lower or 
+                       keyword in tutor_email or 
+                       keyword in tutor_major or 
+                       any(keyword in tag for tag in tutor_tag)):
+                    continue
+            
+            # 2. Lọc theo khoa - CHỈ áp dụng nếu có tiêu chí khoa
+            # Hỗ trợ partial match (tìm kiếm linh hoạt)
+            # CHỈ kiểm tra trong profile.khoa, không kiểm tra major (vì khoa và major khác nhau)
+            if criteria.khoa:
+                if not tutor_profile:
+                    continue  # Không có profile thì không có thông tin khoa, bỏ qua
+                
+                khoa_input = criteria.khoa.lower().strip()
+                khoa_profile = tutor_profile.get("khoa", "").lower().strip()
+                
+                if not khoa_profile:
+                    continue  # Profile không có thông tin khoa, bỏ qua
+                
+                # Loại bỏ các từ phổ biến không quan trọng
+                stop_words = ["khoa", "và", "kỹ", "thuật", "bộ", "môn", "công", "nghệ"]
+                
+                # Lấy các từ quan trọng từ input (loại bỏ stop words và từ ngắn)
+                input_words = [w for w in khoa_input.split() 
+                              if len(w) > 2 and w not in stop_words]
+                
+                # Kiểm tra substring trước (nếu input là substring của profile)
+                if khoa_input in khoa_profile:
+                    # Match thành công - input là substring của profile
+                    pass
+                # Kiểm tra xem tất cả các từ quan trọng của input có trong profile không
+                elif input_words and all(input_word in khoa_profile for input_word in input_words):
+                    # Match thành công - tất cả từ quan trọng của input đều có trong profile
+                    pass
+                else:
+                    continue  # Không match, bỏ qua tutor này
+            
+            # 3. Lọc theo chuyên môn - CHỈ áp dụng nếu có tiêu chí chuyên môn
+            # Hỗ trợ partial match và tìm trong danh sách linh_vuc_chuyen_mon
+            if criteria.chuyen_mon:
+                if not tutor_profile:
+                    continue  # Không có profile thì bỏ qua
+                chuyen_mon_input = criteria.chuyen_mon.lower().strip()
+                chuyen_mon_profile = tutor_profile.get("chuyen_mon", "").lower().strip()
+                linh_vuc = [lv.lower().strip() for lv in tutor_profile.get("linh_vuc_chuyen_mon", [])]
+                # Kiểm tra trong chuyen_mon hoặc linh_vuc_chuyen_mon
+                found = (chuyen_mon_input in chuyen_mon_profile or chuyen_mon_profile in chuyen_mon_input or
+                        any(chuyen_mon_input in lv or lv in chuyen_mon_input for lv in linh_vuc) or
+                        any(word in chuyen_mon_profile or any(word in lv for lv in linh_vuc) 
+                            for word in chuyen_mon_input.split() if len(word) > 2))
+                if not found:
+                    continue
+            
+            # 4. Lọc theo môn học (tags) - tìm kiếm partial match - CHỈ áp dụng nếu có tiêu chí môn học
+            if criteria.mon_hoc:
+                mon_hoc = criteria.mon_hoc.lower()
+                tutor_tags = [tag.lower() for tag in t.get("tags", [])]
+                # Kiểm tra xem mon_hoc có trong bất kỳ tag nào không (partial match)
+                if not any(mon_hoc in tag for tag in tutor_tags):
+                    continue
+            
+            # 5. Lọc theo rating - CHỈ áp dụng nếu có tiêu chí rating
+            if criteria.min_rating is not None:
+                if t.get("rating", 0) < criteria.min_rating:
+                    continue
+            
+            # 6. Lọc theo thời gian rảnh (kiểm tra lịch rảnh trong profile hoặc available slots) - CHỈ áp dụng nếu có tiêu chí thời gian
+            if criteria.available_time:
+                available = False
+                # Kiểm tra trong profile lich_ranh
+                if tutor_profile:
+                    lich_ranh = tutor_profile.get("lich_ranh", [])
+                    for schedule in lich_ranh:
+                        if criteria.available_time.lower() in schedule.get("time", "").lower():
+                            available = True
+                            break
+                # Nếu không tìm thấy trong profile, kiểm tra available slots (từ available_slots service)
+                # Note: Để đơn giản, nếu không có trong profile thì bỏ qua filter này
+                # Có thể mở rộng sau để kiểm tra available slots thực tế
+                if not available:
+                    continue
+            
+            # Nếu vượt qua tất cả các bộ lọc, thêm vào kết quả
             result.append(Tutor(**t))
         return result
     

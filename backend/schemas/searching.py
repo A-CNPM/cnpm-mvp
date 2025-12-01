@@ -6,7 +6,10 @@ class SearchCriteria(BaseModel):
     tags: Optional[List[str]] = None
     min_rating: Optional[float] = None
     major: Optional[str] = None
-    available_time: Optional[str] = None
+    khoa: Optional[str] = None  # Khoa/bộ môn
+    mon_hoc: Optional[str] = None  # Môn học
+    available_time: Optional[str] = None  # Thời gian rảnh
+    chuyen_mon: Optional[str] = None  # Lĩnh vực chuyên môn
 
 class Tutor(BaseModel):
     tutorID: str

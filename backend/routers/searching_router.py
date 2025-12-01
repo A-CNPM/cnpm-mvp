@@ -33,5 +33,11 @@ def select_tutor(tutor_id: str, mentee_id: str, data: Dict):
     return {"detail": "Select successful"}
 
 @router.post("/suggested-tutor", response_model=List[SuggestedTutor])
-def get_suggested_tutors(mentee_id: str, criteria: SearchCriteria):
+def get_suggested_tutors(data: Dict):
+    """AI Matching - Lấy danh sách tutor được đề xuất"""
+    from fastapi import Body
+    mentee_id = data.get("mentee_id", "")
+    # Tạo criteria từ các field còn lại
+    criteria_dict = {k: v for k, v in data.items() if k != "mentee_id" and v is not None}
+    criteria = SearchCriteria(**criteria_dict)
     return searching_controller.get_suggested_tutors(mentee_id, criteria)

@@ -1,4 +1,4 @@
-import { FaHome, FaCalendarAlt, FaListUl, FaChartBar, FaEdit, FaCalendar } from "react-icons/fa";
+import { FaHome, FaCalendarAlt, FaEdit, FaCalendar } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import "../assets/css/style.css";
 
@@ -25,22 +25,6 @@ function TutorSidebar({ activeItem, blur }) {
           Buổi tư vấn
         </div>
         <div
-          className={`sidebar-item${activeItem === "students" ? " active" : ""}`}
-          onClick={() => navigate("/tutor/students")}
-          style={{ cursor: "pointer" }}
-        >
-          <span className="sidebar-icon"><FaListUl style={{color: "#6366f1", fontSize: 20}} /></span>
-          Sinh viên
-        </div>
-        <div
-          className={`sidebar-item${activeItem === "process" ? " active" : ""}`}
-          onClick={() => navigate("/tutor/process")}
-          style={{ cursor: "pointer" }}
-        >
-          <span className="sidebar-icon"><FaChartBar style={{color: "#6366f1", fontSize: 20}} /></span>
-          Quá trình
-        </div>
-        <div
           className={`sidebar-item${activeItem === "feedback" ? " active" : ""}`}
           onClick={() => navigate("/tutor/feedback")}
           style={{ cursor: "pointer" }}
@@ -49,12 +33,12 @@ function TutorSidebar({ activeItem, blur }) {
           Phản hồi
         </div>
         <div
-          className={`sidebar-item${activeItem === "calendar" ? " active" : ""}`}
-          onClick={() => navigate("/tutor/calendar")}
+          className={`sidebar-item${activeItem === "schedule" ? " active" : ""}`}
+          onClick={() => navigate("/tutor/schedule")}
           style={{ cursor: "pointer" }}
         >
           <span className="sidebar-icon"><FaCalendar style={{color: "#6366f1", fontSize: 20}} /></span>
-          Lịch
+          Quản lý lịch
         </div>
       </div>
     </aside>

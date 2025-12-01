@@ -8,6 +8,10 @@ export const SearchService = {
      * @param {string[]} [criteria.tags] - Danh sách tags
      * @param {number} [criteria.min_rating] - Đánh giá tối thiểu
      * @param {string} [criteria.major] - Chuyên ngành
+     * @param {string} [criteria.khoa] - Khoa/bộ môn
+     * @param {string} [criteria.mon_hoc] - Môn học
+     * @param {string} [criteria.chuyen_mon] - Lĩnh vực chuyên môn
+     * @param {string} [criteria.available_time] - Thời gian rảnh
      */
     async searchTutors(criteria = {}) {
         try {
@@ -76,6 +80,32 @@ export const SearchService = {
         } catch (error) {
             console.error("Lỗi lấy chi tiết Tutor:", error);
             return null;
+        }
+    },
+
+    /**
+     * AI Matching - Lấy danh sách tutor được đề xuất
+     * @param {string} menteeId - ID của mentee
+     * @param {Object} criteria - Tiêu chí tìm kiếm
+     */
+    async getSuggestedTutors(menteeId, criteria = {}) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/searching/suggested-tutor`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ mentee_id: menteeId, ...criteria }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Lỗi HTTP: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error("Lỗi khi lấy danh sách tutor đề xuất:", error);
+            return [];
         }
     }
 };

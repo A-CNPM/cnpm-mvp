@@ -1,108 +1,254 @@
-import { FaCalendarAlt, FaUser, FaClock, FaBook, FaGlobe, FaStar, FaGraduationCap, FaTags, FaInfoCircle, FaFilter } from "react-icons/fa";
-import React, { useState, useEffect } from "react";
+import { FaCalendarAlt, FaUser, FaClock, FaBook, FaGlobe, FaStar, FaGraduationCap, FaTags, FaInfoCircle, FaFilter, FaCheckCircle, FaTimesCircle, FaEdit, FaRobot, FaPaperPlane, FaSpinner, FaTimes } from "react-icons/fa";
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import "../../assets/css/style.css";
-import MenteeSidebar from "../../components/MenteeSidebar";
 import SearchService from "../../api/search";
-import SessionService from "../../api/session";
+import AvailableSlotService from "../../api/availableSlot";
+import ChatbotService from "../../api/chatbot";
 
 function FindTutor() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Lấy userId ngay từ đầu
+  const userId = localStorage.getItem("username") || localStorage.getItem("user_id") || "b.levan";
+  
   // --- STATE DỮ LIỆU ---
   const [tutors, setTutors] = useState([]);
   const [keyword, setKeyword] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  // --- STATE BỘ LỌC ---
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterKhoa, setFilterKhoa] = useState("");
+  const [filterMonHoc, setFilterMonHoc] = useState("");
+  const [filterChuyenMon, setFilterChuyenMon] = useState("");
+  const [filterThoiGian, setFilterThoiGian] = useState("");
+  const [filterMinRating, setFilterMinRating] = useState("");
 
-  // --- STATE MODAL XEM LỊCH DẠY ---
+  // --- STATE MODAL XEM LỊCH RẢNH ---
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [tutorSessions, setTutorSessions] = useState([]);
-  const [loadingSessions, setLoadingSessions] = useState(false);
-  const [currentTutorName, setCurrentTutorName] = useState("");
+  const [tutorSlots, setTutorSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [currentTutor, setCurrentTutor] = useState(null);
+  const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("");
   
-  // State Filter cho Modal Lịch Dạy (MỚI)
+  // State Filter cho Modal Lịch Rảnh
   const [scheduleMode, setScheduleMode] = useState("");   // "Online" / "Offline"
-
-  // --- STATE ĐĂNG KÝ SESSION ---
-  const [registeringSession, setRegisteringSession] = useState(null); // ID session đang đăng ký
-  
-  // Hàm kiểm tra mentee đã đăng ký session chưa
-  const isRegisteredForSession = (session) => {
-    const menteeId = "b.levan";
-    return session.participants && session.participants.includes(menteeId);
-  };
-
-  // Hàm format thời gian session
-  const formatSessionTime = (session) => {
-    if (session.startTime && session.endTime) {
-      return `${session.startTime} - ${session.endTime.split(' ')[1]}`;
-    }
-    return session.time || "Chưa xác định";
-  };
-
-  // --- HÀM HELPER: MÀU SẮC TRẠNG THÁI ---
-  const getStatusStyles = (status) => {
-    switch (status) {
-      case "Hoàn thành":
-        return { color: "#2dd4bf", bg: "#e6fcf7" }; // Xanh ngọc
-      case "Đã hủy":
-        return { color: "#f87171", bg: "#fff1f2" }; // Đỏ
-      case "Sắp diễn ra":
-        return { color: "#f59e0b", bg: "#fef3c7" }; // Màu cam vàng
-      case "Đang mở đăng ký":
-        return { color: "#a78bfa", bg: "#f3f0ff" }; // Tím
-      default:
-        return { color: "#64748b", bg: "#f1f5f9" }; // Xám
-    }
-  };
 
   // --- STATE MODAL XEM PROFILE ---
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [tutorProfile, setTutorProfile] = useState(null);
 
+  // --- STATE AI MATCHING CHATBOX ---
+  const [showAIChatbox, setShowAIChatbox] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatConversationId, setChatConversationId] = useState(null);
+  const [chatMatchedTutors, setChatMatchedTutors] = useState([]);
+  const [chatSuggestions, setChatSuggestions] = useState([]);
+  const chatMessagesEndRef = useRef(null);
+
   // --- API: Lấy danh sách Tutor ---
   const fetchTutors = async () => {
     setLoading(true);
-    const criteria = { keyword: keyword };
+    // Chỉ gửi các field có giá trị (không gửi null hoặc empty string)
+    const criteria = {};
+    if (keyword && keyword.trim()) {
+      criteria.keyword = keyword.trim();
+    }
+    if (filterKhoa && filterKhoa.trim()) {
+      criteria.khoa = filterKhoa.trim();
+    }
+    if (filterMonHoc && filterMonHoc.trim()) {
+      criteria.mon_hoc = filterMonHoc.trim();
+    }
+    if (filterChuyenMon && filterChuyenMon.trim()) {
+      criteria.chuyen_mon = filterChuyenMon.trim();
+    }
+    if (filterThoiGian && filterThoiGian.trim()) {
+      criteria.available_time = filterThoiGian.trim();
+    }
+    if (filterMinRating && filterMinRating.trim()) {
+      criteria.min_rating = parseFloat(filterMinRating);
+    }
+    
     const data = await SearchService.searchTutors(criteria);
     setTutors(data);
     setLoading(false);
+  };
+  
+  // --- API: AI Matching ---
+  const handleAIMatching = () => {
+    setShowAIChatbox(!showAIChatbox);
+    if (!showAIChatbox && chatMessages.length === 0) {
+      // Tin nhắn chào mừng ban đầu
+      const welcomeMessage = {
+        role: "assistant",
+        content: "Xin chào! 👋 Tôi là trợ lý AI của HCMUT_TSS. Tôi có thể giúp bạn tìm tutor phù hợp dựa trên nhu cầu học tập của bạn. Bạn muốn học về lĩnh vực nào?",
+        timestamp: new Date().toISOString()
+      };
+      setChatMessages([welcomeMessage]);
+      setChatSuggestions([
+        "Tôi muốn học về Web Development",
+        "Tôi cần hỗ trợ về Machine Learning",
+        "Tôi quan tâm đến Blockchain",
+        "Tôi muốn học về Security"
+      ]);
+    }
+  };
+
+  // --- HANDLER: Gửi tin nhắn trong AI Chatbox ---
+  const handleSendChatMessage = async (messageText = null) => {
+    const textToSend = messageText || chatInput.trim();
+    if (!textToSend) return;
+
+    const userMessage = {
+      role: "user",
+      content: textToSend,
+      timestamp: new Date().toISOString()
+    };
+    setChatMessages(prev => [...prev, userMessage]);
+    setChatInput("");
+    setChatLoading(true);
+
+    try {
+      const response = await ChatbotService.sendMessage(textToSend, userId, chatConversationId);
+      
+      if (response.conversation_id) {
+        setChatConversationId(response.conversation_id);
+      }
+
+      const botMessage = {
+        role: "assistant",
+        content: response.message,
+        timestamp: new Date().toISOString()
+      };
+      setChatMessages(prev => [...prev, botMessage]);
+
+      if (response.matched_tutors && response.matched_tutors.length > 0) {
+        setChatMatchedTutors(response.matched_tutors);
+      }
+      if (response.suggestions) {
+        setChatSuggestions(response.suggestions);
+      }
+    } catch (error) {
+      console.error("Lỗi khi gửi tin nhắn:", error);
+      const errorMessage = {
+        role: "assistant",
+        content: "Xin lỗi, đã xảy ra lỗi. Vui lòng thử lại sau.",
+        timestamp: new Date().toISOString()
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  // Scroll to bottom khi có tin nhắn mới
+  useEffect(() => {
+    if (showAIChatbox) {
+      chatMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages, showAIChatbox]);
+
+  const formatChatTime = (timestamp) => {
+    if (!timestamp) return "";
+    try {
+      const date = new Date(timestamp);
+      return date.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+    } catch {
+      return "";
+    }
   };
 
   useEffect(() => {
     fetchTutors();
   }, []);
 
-  // --- EFFECT: Tự động tải/lọc lịch dạy khi Modal mở hoặc Filter thay đổi (MỚI) ---
+  // --- EFFECT: Tự động mở modal lịch dạy khi có query params ---
   useEffect(() => {
-    const fetchTutorSchedule = async () => {
-      if (!showScheduleModal || !currentTutorName) return;
+    const tutorId = searchParams.get("tutor_id");
+    const viewSchedule = searchParams.get("view_schedule");
+    
+    if (tutorId && viewSchedule === "true" && tutors.length > 0) {
+      // Tìm tutor trong danh sách
+      const tutor = tutors.find(t => t.tutorID === tutorId);
+      if (tutor && !showScheduleModal) {
+        setCurrentTutor(tutor);
+        setScheduleMode("");
+        setTutorSlots([]);
+        setMessage("");
+        setShowScheduleModal(true);
+        // Xóa query params sau khi mở modal
+        setSearchParams({});
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, tutors]);
 
-      setLoadingSessions(true);
+  // --- EFFECT: Tự động tải lịch rảnh khi Modal mở hoặc Filter thay đổi ---
+  useEffect(() => {
+    const fetchTutorSlots = async () => {
+      if (!showScheduleModal || !currentTutor) return;
+
+      setLoadingSlots(true);
       try {
-        // Gửi cả tên Tutor + Các bộ lọc
-        const criteria = { 
-            tutor_name: currentTutorName,
-            mode: scheduleMode || null,
-            status: "Đang mở đăng ký" // Luôn chỉ hiển thị "Đang mở đăng ký"
-        };
-        const data = await SearchService.searchSessions(criteria);
-        setTutorSessions(data);
+        // Lấy lịch rảnh của tutor (chỉ lấy những cái đang mở đăng ký)
+        const data = await AvailableSlotService.getTutorSlots(currentTutor.tutorID, "Mở đăng ký");
+        // Lọc theo mode nếu có
+        let filtered = data;
+        if (scheduleMode) {
+          filtered = data.filter(slot => slot.mode === scheduleMode);
+        }
+        setTutorSlots(filtered);
       } catch (error) {
-        console.error("Lỗi lấy lịch dạy:", error);
+        console.error("Lỗi lấy lịch rảnh:", error);
       } finally {
-        setLoadingSessions(false);
+        setLoadingSlots(false);
       }
     };
 
-    fetchTutorSchedule();
-  }, [showScheduleModal, currentTutorName, scheduleMode]); // Bỏ scheduleStatus khỏi dependency
+    fetchTutorSlots();
+  }, [showScheduleModal, currentTutor, scheduleMode]);
 
-  // --- HANDLER: Mở Modal Xem lịch dạy ---
+  // --- HANDLER: Mở Modal Xem lịch rảnh ---
   const handleViewSchedule = (tutor) => {
-    setCurrentTutorName(tutor.full_name);
-    // Reset bộ lọc về mặc định mỗi khi mở modal mới
+    setCurrentTutor(tutor);
     setScheduleMode("");
-    setTutorSessions([]); // Xóa dữ liệu cũ
+    setTutorSlots([]);
+    setMessage("");
     setShowScheduleModal(true);
-    // (useEffect phía trên sẽ tự chạy để load dữ liệu)
+  };
+
+  // --- HANDLER: Đăng ký lịch rảnh ---
+  const handleRegisterSlot = async (slotId) => {
+    try {
+      setMessage("");
+      const result = await AvailableSlotService.registerSlot(slotId, userId);
+      if (result.success) {
+        setMessage("Đăng ký thành công!");
+        setMessageType("success");
+        // Reload lịch rảnh
+        const data = await AvailableSlotService.getTutorSlots(currentTutor.tutorID, "Mở đăng ký");
+        let filtered = data;
+        if (scheduleMode) {
+          filtered = data.filter(slot => slot.mode === scheduleMode);
+        }
+        setTutorSlots(filtered);
+        setTimeout(() => {
+          setMessage("");
+        }, 3000);
+      }
+    } catch (error) {
+      setMessage(error.message || "Đăng ký thất bại");
+      setMessageType("error");
+      setTimeout(() => {
+        setMessage("");
+      }, 3000);
+    }
   };
 
   // --- HANDLER: Xem Profile ---
@@ -157,7 +303,6 @@ function FindTutor() {
   return (
     <>
       <div className="mentee-dashboard">
-        <MenteeSidebar activeItem="find-tutor" />
         <main className="main-content">
           <div className="mentee-header">
             <h1 className="mentee-title">Mentee</h1>
@@ -166,60 +311,490 @@ function FindTutor() {
           <h2 className="main-title">Tìm kiếm và lựa chọn Tutor</h2>
           
           <div className="search-bar-row">
-            <input 
-              className="search-bar" 
-              placeholder="Tìm tutor theo tên..." 
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && fetchTutors()}
-              style={{ 
-                backgroundColor: "#e5e7eb",
-                color: "black" 
-               }}
-            />
-            <button className="filter-btn" onClick={fetchTutors}>Tìm kiếm</button>
-            <button className="ai-btn">AI Matching</button>
-            <button className="connected-btn">Danh sách Tutor đã kết nối</button>
+            <div style={{ display: "flex", flex: 1, gap: 10 }}>
+              <input 
+                className="search-bar" 
+                placeholder="Tìm tutor theo tên, chuyên môn..." 
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    fetchTutors();
+                  }
+                }}
+                style={{ 
+                  backgroundColor: "#e5e7eb",
+                  color: "black",
+                  flex: 1
+                }}
+              />
+              <button 
+                className="filter-btn" 
+                onClick={fetchTutors}
+                style={{ 
+                  backgroundColor: "#4f46e5",
+                  color: "white",
+                  padding: "10px 20px",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  whiteSpace: "nowrap"
+                }}
+              >
+                Tìm kiếm
+              </button>
+            </div>
+            <button 
+              className="filter-btn" 
+              onClick={() => setShowFilters(!showFilters)}
+              style={{ backgroundColor: showFilters ? "#e0e7ff" : "" }}
+            >
+              <FaFilter style={{marginRight: 5}}/> Bộ lọc
+            </button>
+            <button 
+              className="ai-btn" 
+              onClick={handleAIMatching}
+              style={{ backgroundColor: showAIChatbox ? "#4f46e5" : "" }}
+            >
+              AI Matching {showAIChatbox && "✓"}
+            </button>
           </div>
+          
+          {/* BỘ LỌC */}
+          {showFilters && (
+            <div style={{
+              marginBottom: 20,
+              marginTop: 10,
+              padding: 20,
+              background: "#f8fafc",
+              borderRadius: 8,
+              border: "1px solid #e2e8f0",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+              gap: 15
+            }}>
+              <div>
+                <label style={{fontSize: 12, fontWeight: "bold", marginBottom: 4, color: "#64748b", display: "block"}}>KHOA/BỘ MÔN</label>
+                <input
+                  type="text"
+                  placeholder="VD: Khoa học máy tính"
+                  value={filterKhoa}
+                  onChange={(e) => setFilterKhoa(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      fetchTutors();
+                    }
+                  }}
+                  style={{width: "100%", padding: "8px", borderRadius: 6, border: "1px solid #cbd5e1"}}
+                />
+              </div>
+              <div>
+                <label style={{fontSize: 12, fontWeight: "bold", marginBottom: 4, color: "#64748b", display: "block"}}>MÔN HỌC</label>
+                <input
+                  type="text"
+                  placeholder="VD: DSA, Web, Python"
+                  value={filterMonHoc}
+                  onChange={(e) => setFilterMonHoc(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      fetchTutors();
+                    }
+                  }}
+                  style={{width: "100%", padding: "8px", borderRadius: 6, border: "1px solid #cbd5e1"}}
+                />
+              </div>
+              <div>
+                <label style={{fontSize: 12, fontWeight: "bold", marginBottom: 4, color: "#64748b", display: "block"}}>CHUYÊN MÔN</label>
+                <input
+                  type="text"
+                  placeholder="VD: Công nghệ phần mềm"
+                  value={filterChuyenMon}
+                  onChange={(e) => setFilterChuyenMon(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      fetchTutors();
+                    }
+                  }}
+                  style={{width: "100%", padding: "8px", borderRadius: 6, border: "1px solid #cbd5e1"}}
+                />
+              </div>
+              <div>
+                <label style={{fontSize: 12, fontWeight: "bold", marginBottom: 4, color: "#64748b", display: "block"}}>ĐÁNH GIÁ TỐI THIỂU</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="5"
+                  step="0.1"
+                  placeholder="VD: 4.0"
+                  value={filterMinRating}
+                  onChange={(e) => setFilterMinRating(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      fetchTutors();
+                    }
+                  }}
+                  style={{width: "100%", padding: "8px", borderRadius: 6, border: "1px solid #cbd5e1"}}
+                />
+              </div>
+              <div style={{display: "flex", alignItems: "flex-end", gap: 10}}>
+                <button
+                  onClick={fetchTutors}
+                  style={{
+                    padding: "8px 20px",
+                    background: "#4f46e5",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    whiteSpace: "nowrap"
+                  }}
+                >
+                  Lọc
+                </button>
+                <button
+                  onClick={() => {
+                    setFilterKhoa("");
+                    setFilterMonHoc("");
+                    setFilterChuyenMon("");
+                    setFilterMinRating("");
+                    fetchTutors();
+                  }}
+                  style={{
+                    padding: "8px 16px",
+                    background: "transparent",
+                    color: "#64748b",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    fontSize: 13
+                  }}
+                >
+                  Xóa bộ lọc
+                </button>
+              </div>
+            </div>
+          )}
 
-          <div className="tutor-list">
-            {loading ? <p style={{textAlign: "center"}}>Đang tải...</p> : tutors.map((tutor, idx) => (
-              <div className="tutor-card" key={tutor.tutorID || idx}>
-                <div className="tutor-avatar">
-                  <span role="img" aria-label="avatar" style={{fontSize: 64, color: "#b3a4e6"}}>👤</span>
-                </div>
-                <div className="tutor-info">
-                  <div className="tutor-name">{tutor.full_name}</div>
-                  <div className="tutor-rating">
-                    <span role="img" aria-label="star" style={{color: "#2563eb"}}>★</span> {tutor.rating}
+          <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+            {/* Danh sách Tutor - Chiếm phần lớn không gian */}
+            <div style={{ flex: showAIChatbox ? "1 1 60%" : "1 1 100%" }}>
+              <div className="tutor-list">
+                {loading ? <p style={{textAlign: "center"}}>Đang tải...</p> : tutors.map((tutor, idx) => (
+                  <div className="tutor-card" key={tutor.tutorID || idx}>
+                    <div className="tutor-avatar">
+                      <span role="img" aria-label="avatar" style={{fontSize: 64, color: "#b3a4e6"}}>👤</span>
+                    </div>
+                    <div className="tutor-info">
+                      <div className="tutor-name">{tutor.full_name}</div>
+                      <div className="tutor-rating">
+                        <span role="img" aria-label="star" style={{color: "#2563eb"}}>★</span> {tutor.rating}
+                      </div>
+                      <div className="tutor-major">
+                        <span role="img" aria-label="globe" style={{color: "#2563eb"}}>🌐</span> {tutor.major}
+                      </div>
+                      <div className="tutor-tags">
+                        {tutor.tags && tutor.tags.map(tag => (
+                          <span className="tutor-tag" key={tag}>{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="tutor-actions">
+                      <button 
+                        className="tutor-btn" 
+                        style={{backgroundColor: "#4f46e5", color: "white", marginRight: "10px"}}
+                        onClick={() => handleViewSchedule(tutor)}
+                      >
+                        Xem lịch dạy
+                      </button>
+                      <button
+                        className="tutor-btn"
+                        style={{backgroundColor: "#fff", color: "#4f46e5", border: "1px solid #4f46e5"}}
+                        onClick={() => handleViewProfile(tutor)}
+                      >
+                        Xem hồ sơ
+                      </button>
+                    </div>
                   </div>
-                  <div className="tutor-major">
-                    <span role="img" aria-label="globe" style={{color: "#2563eb"}}>🌐</span> {tutor.major}
+                ))}
+              </div>
+            </div>
+
+            {/* AI Chatbox - Hiển thị một phần bên phải */}
+            {showAIChatbox && (
+              <div style={{
+                flex: "0 0 400px",
+                background: "#fff",
+                borderRadius: 12,
+                border: "1px solid #e2e8f0",
+                display: "flex",
+                flexDirection: "column",
+                height: "600px",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+              }}>
+                {/* Header */}
+                <div style={{
+                  padding: "15px",
+                  borderBottom: "1px solid #e2e8f0",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  background: "#4f46e5",
+                  color: "#fff",
+                  borderRadius: "12px 12px 0 0"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <FaRobot style={{ fontSize: 20 }} />
+                    <span style={{ fontWeight: 600 }}>AI Matching</span>
                   </div>
-                  <div className="tutor-tags">
-                    {tutor.tags && tutor.tags.map(tag => (
-                      <span className="tutor-tag" key={tag}>{tag}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="tutor-actions">
-                  <button 
-                    className="tutor-btn" 
-                    style={{backgroundColor: "#4f46e5", color: "white", marginRight: "10px"}}
-                    onClick={() => handleViewSchedule(tutor)}
-                  >
-                    Xem lịch dạy
-                  </button>
                   <button
-                    className="tutor-btn"
-                    style={{backgroundColor: "#fff", color: "#4f46e5", border: "1px solid #4f46e5"}}
-                    onClick={() => handleViewProfile(tutor)}
+                    onClick={() => setShowAIChatbox(false)}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "#fff",
+                      cursor: "pointer",
+                      fontSize: 20,
+                      padding: 0,
+                      width: 24,
+                      height: 24,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}
                   >
-                    Xem hồ sơ
+                    <FaTimes />
                   </button>
+                </div>
+
+                {/* Messages Area */}
+                <div style={{
+                  flex: 1,
+                  overflowY: "auto",
+                  padding: "15px",
+                  background: "#f8fafc"
+                }}>
+                  {chatMessages.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        display: "flex",
+                        justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
+                        marginBottom: 12
+                      }}
+                    >
+                      <div style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 8,
+                        maxWidth: "85%",
+                        flexDirection: msg.role === "user" ? "row-reverse" : "row"
+                      }}>
+                        <div style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "50%",
+                          background: msg.role === "user" ? "#6366f1" : "#10b981",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0
+                        }}>
+                          {msg.role === "user" ? (
+                            <FaUser style={{ color: "#fff", fontSize: 14 }} />
+                          ) : (
+                            <FaRobot style={{ color: "#fff", fontSize: 14 }} />
+                          )}
+                        </div>
+                        <div style={{
+                          background: msg.role === "user" ? "#6366f1" : "#fff",
+                          color: msg.role === "user" ? "#fff" : "#1e293b",
+                          padding: "10px 14px",
+                          borderRadius: 16,
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                          fontSize: 13,
+                          lineHeight: 1.5,
+                          wordWrap: "break-word",
+                          whiteSpace: "pre-wrap"
+                        }}>
+                          {msg.content}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {chatLoading && (
+                    <div style={{
+                      display: "flex",
+                      justifyContent: "flex-start",
+                      marginBottom: 12
+                    }}>
+                      <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8
+                      }}>
+                        <div style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "50%",
+                          background: "#10b981",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center"
+                        }}>
+                          <FaRobot style={{ color: "#fff", fontSize: 14 }} />
+                        </div>
+                        <div style={{
+                          background: "#fff",
+                          padding: "10px 14px",
+                          borderRadius: 16,
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
+                        }}>
+                          <FaSpinner style={{ animation: "spin 1s linear infinite", fontSize: 14 }} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Matched Tutors */}
+                  {chatMatchedTutors.length > 0 && (
+                    <div style={{ marginTop: 15 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "#64748b", marginBottom: 8 }}>
+                        Tutors phù hợp:
+                      </div>
+                      {chatMatchedTutors.map((tutor, idx) => (
+                        <div
+                          key={idx}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleViewSchedule(tutor);
+                          }}
+                          style={{
+                            padding: 10,
+                            background: "#fff",
+                            borderRadius: 8,
+                            border: "1px solid #e2e8f0",
+                            marginBottom: 8,
+                            cursor: "pointer",
+                            transition: "all 0.2s"
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "#f8fafc";
+                            e.currentTarget.style.borderColor = "#4f46e5";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "#fff";
+                            e.currentTarget.style.borderColor = "#e2e8f0";
+                          }}
+                        >
+                          <div style={{ fontWeight: 600, fontSize: 13, color: "#1e293b", marginBottom: 4 }}>
+                            {tutor.full_name}
+                          </div>
+                          <div style={{ fontSize: 11, color: "#64748b" }}>
+                            {tutor.major} • ⭐ {tutor.rating}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Suggestions */}
+                  {chatSuggestions.length > 0 && (
+                    <div style={{ marginTop: 15 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "#64748b", marginBottom: 8 }}>
+                        Gợi ý:
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {chatSuggestions.map((suggestion, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => handleSendChatMessage(suggestion)}
+                            style={{
+                              padding: "8px 12px",
+                              background: "#e0e7ff",
+                              color: "#4f46e5",
+                              border: "none",
+                              borderRadius: 8,
+                              fontSize: 12,
+                              cursor: "pointer",
+                              textAlign: "left",
+                              transition: "all 0.2s"
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "#c7d2fe";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "#e0e7ff";
+                            }}
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div ref={chatMessagesEndRef} />
+                </div>
+
+                {/* Input Area */}
+                <div style={{
+                  padding: "15px",
+                  borderTop: "1px solid #e2e8f0",
+                  background: "#fff",
+                  borderRadius: "0 0 12px 12px"
+                }}>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      type="text"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendChatMessage();
+                        }
+                      }}
+                      placeholder="Nhập tin nhắn..."
+                      style={{
+                        flex: 1,
+                        padding: "10px 14px",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 20,
+                        fontSize: 13,
+                        outline: "none"
+                      }}
+                    />
+                    <button
+                      onClick={() => handleSendChatMessage()}
+                      disabled={chatLoading || !chatInput.trim()}
+                      style={{
+                        padding: "10px 16px",
+                        background: chatLoading || !chatInput.trim() ? "#cbd5e1" : "#4f46e5",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 20,
+                        cursor: chatLoading || !chatInput.trim() ? "not-allowed" : "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center"
+                      }}
+                    >
+                      <FaPaperPlane style={{ fontSize: 14 }} />
+                    </button>
+                  </div>
                 </div>
               </div>
-            ))}
+            )}
           </div>
            {/* Pagination... */}
         </main>
@@ -278,8 +853,8 @@ function FindTutor() {
         </div>
       )}
 
-      {/* --- MODAL 2: XEM LỊCH DẠY (ĐÃ CẬP NHẬT FILTER) --- */}
-      {showScheduleModal && (
+      {/* --- MODAL 2: XEM LỊCH RẢNH --- */}
+      {showScheduleModal && currentTutor && (
         <div className="modal-overlay">
           <div 
             className="modal-detail-form"
@@ -295,17 +870,35 @@ function FindTutor() {
             {/* HEADER MODAL */}
             <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 15, borderBottom: "1px solid #eee", paddingBottom: 10}}>
                 <h3 style={{margin: 0, color: "#1e293b"}}>
-                   Lịch dạy: {currentTutorName}
+                   Lịch rảnh: {currentTutor.full_name}
                 </h3>
                 <button 
-                    onClick={() => setShowScheduleModal(false)}
+                    onClick={() => {
+                      setShowScheduleModal(false);
+                      setCurrentTutor(null);
+                      setMessage("");
+                    }}
                     style={{background: "none", border: "none", fontSize: "24px", cursor: "pointer", color: "#666"}}
                 >
                     &times;
                 </button>
             </div>
 
-            {/* --- KHU VỰC FILTER TRONG MODAL (MỚI) --- */}
+            {/* Thông báo */}
+            {message && (
+              <div style={{
+                marginBottom: 15,
+                padding: 12,
+                borderRadius: 8,
+                background: messageType === "success" ? "#d1fae5" : "#fee2e2",
+                color: messageType === "success" ? "#065f46" : "#991b1b",
+                fontSize: 14
+              }}>
+                {message}
+              </div>
+            )}
+
+            {/* --- KHU VỰC FILTER TRONG MODAL --- */}
             <div style={{
                 display: "flex", 
                 gap: "10px", 
@@ -329,18 +922,23 @@ function FindTutor() {
                 </div>
             </div>
             
-            {/* DANH SÁCH SESSIONS */}
-            {loadingSessions ? (
+            {/* DANH SÁCH LỊCH RẢNH */}
+            {loadingSlots ? (
                 <p style={{textAlign: "center"}}>Đang tải dữ liệu...</p>
-            ) : tutorSessions.length === 0 ? (
+            ) : tutorSlots.length === 0 ? (
                 <div style={{textAlign: "center", color: "#64748b", padding: 20, background: "#f8fafc", borderRadius: 8}}>
                     <FaCalendarAlt style={{fontSize: 24, marginBottom: 5, color: "#94a3b8"}}/>
-                    <p>Không tìm thấy buổi học nào phù hợp.</p>
+                    <p>Không có lịch rảnh nào đang mở đăng ký.</p>
                 </div>
             ) : (
                 <div style={{display: "flex", flexDirection: "column", gap: "15px"}}>
-                    {tutorSessions.map((session, index) => (
-                        <div key={index} style={{
+                    {tutorSlots.map((slot) => {
+                      const isRegistered = slot.registered_participants?.includes(userId);
+                      const currentCount = slot.registered_participants?.length || 0;
+                      const isFull = currentCount >= slot.max_participants;
+                      
+                      return (
+                        <div key={slot.slot_id} style={{
                             border: "1px solid #e2e8f0", 
                             borderRadius: "8px", 
                             padding: "15px",
@@ -353,84 +951,73 @@ function FindTutor() {
                             <div style={{display: "flex", justifyContent: "space-between", alignItems: "start"}}>
                                 <strong style={{color: "#4f46e5", fontSize: "16px"}}>
                                     <FaBook style={{marginRight: 6, fontSize: 14}}/>
-                                    {session.topic}
+                                    {slot.topic || "Buổi tư vấn"}
                                 </strong>
                                 <span style={{
                                     fontSize: "12px", 
                                     padding: "4px 8px", 
                                     borderRadius: "4px", 
-                                    background: getStatusStyles(session.status).bg,
-                                    color: getStatusStyles(session.status).color,
+                                    background: "#e6fcf7",
+                                    color: "#0d9488",
                                     fontWeight: "bold"
                                 }}>
-                                    {session.status}
+                                    {slot.status}
                                 </span>
                             </div>
 
                             <div style={{display: "flex", gap: "20px", fontSize: "14px", color: "#475569", flexWrap: "wrap"}}>
-                                <span><FaClock style={{marginRight: 5}}/> {formatSessionTime(session)}</span>
-                                <span><FaGlobe style={{marginRight: 5}}/> {session.mode}</span>
-                                <span><FaUser style={{marginRight: 5}}/> {session.participants?.length || 0}/{session.maxParticipants} người</span>
+                                <span><FaClock style={{marginRight: 5}}/> {slot.start_time} - {slot.end_time}</span>
+                                <span><FaGlobe style={{marginRight: 5}}/> {slot.mode}</span>
+                                <span style={{color: isFull ? "#ef4444" : "#10b981"}}>
+                                  Đã đăng ký: {currentCount}/{slot.max_participants}
+                                </span>
                             </div>
                             
-                            {/* Hiển thị location */}
-                            <div style={{fontSize: "14px", color: "#475569"}}>
-                                <span>📍 {session.location || "Chưa cập nhật địa điểm"}</span>
-                            </div>
-                            
-                            <div style={{display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "15px"}}>
-                                <div style={{fontSize: "13px", color: "#64748b", flex: 1}}>
-                                    {session.content ? session.content : "Chưa có nội dung chi tiết."}
-                                </div>
+                            {slot.location && (
+                              <div style={{fontSize: "13px", color: "#64748b"}}>
+                                <FaGlobe style={{marginRight: 5}}/> {slot.location}
+                              </div>
+                            )}
 
-                                {/* Nút đăng ký ở bên phải, ngang hàng với nội dung */}
-                                <div style={{flexShrink: 0}}>
-                                    {isRegisteredForSession(session) ? (
-                                        <button
-                                            disabled
-                                            style={{
-                                                padding: "8px 16px",
-                                                background: "#10b981",
-                                                color: "white",
-                                                border: "none",
-                                                borderRadius: "6px",
-                                                fontSize: "13px",
-                                                fontWeight: "bold",
-                                                cursor: "not-allowed",
-                                                opacity: 0.8
-                                            }}
-                                        >
-                                            ✓ Đã đăng ký
-                                        </button>
-                                    ) : (
-                                        <button
-                                            onClick={() => handleRegisterSession(session.sessionID)}
-                                            disabled={registeringSession === session.sessionID}
-                                            style={{
-                                                padding: "8px 16px",
-                                                background: registeringSession === session.sessionID ? "#94a3b8" : "#4f46e5",
-                                                color: "white",
-                                                border: "none",
-                                                borderRadius: "6px",
-                                                fontSize: "13px",
-                                                fontWeight: "bold",
-                                                cursor: registeringSession === session.sessionID ? "not-allowed" : "pointer"
-                                            }}
-                                        >
-                                            {registeringSession === session.sessionID ? "Đang đăng ký..." : "Đăng ký"}
-                                        </button>
-                                    )}
-                                </div>
+                            {isRegistered && (
+                              <div style={{padding: 8, background: "#d1fae5", borderRadius: 6, fontSize: 13, color: "#065f46"}}>
+                                <FaCheckCircle style={{marginRight: 5}}/> Bạn đã đăng ký lịch này
+                              </div>
+                            )}
+
+                            <div style={{display: "flex", gap: 10, marginTop: 5}}>
+                              {!isRegistered && !isFull && (
+                                <button
+                                  onClick={() => handleRegisterSlot(slot.slot_id)}
+                                  style={{
+                                    padding: "8px 16px",
+                                    background: "#4f46e5",
+                                    color: "#fff",
+                                    border: "none",
+                                    borderRadius: 6,
+                                    fontSize: 13,
+                                    fontWeight: 600,
+                                    cursor: "pointer"
+                                  }}
+                                >
+                                  Đăng ký
+                                </button>
+                              )}
                             </div>
                         </div>
-                    ))}
+                      );
+                    })}
                 </div>
             )}
             
             <div style={{textAlign: "right", marginTop: 20}}>
                 <button 
                     className="modal-submit" 
-                    onClick={() => setShowScheduleModal(false)}
+                    onClick={() => {
+                      setShowScheduleModal(false);
+                      setCurrentTutor(null);
+                      setMessage("");
+                    }}
                     style={{padding: "8px 24px"}}
                 >
                     Đóng
