@@ -1,5 +1,16 @@
 from pydantic import BaseModel
 from typing import List, Optional
+from enum import Enum
+
+class SessionStatus(str, Enum):
+    UPCOMING = "Sắp diễn ra"
+    OPEN_REGISTRATION = "Đang mở đăng ký" 
+    COMPLETED = "Hoàn thành"
+    CANCELLED = "Đã hủy"
+
+class SessionMode(str, Enum):
+    ONLINE = "Online"
+    OFFLINE = "Offline"
 
 class SessionResource(BaseModel):
     resourceID: str
@@ -20,10 +31,10 @@ class Session(BaseModel):
     tutor: str  # userID reference từ Profile
     participants: List[str] = []  # list of userIDs từ Profile
     topic: str
-    mode: str  # Online/Offline
-    status: str  # Khởi tạo, Đã xác nhận, Đã hoàn thành, Đã huỷ, etc.
-    startTime: str  # ISO format datetime string
-    endTime: str
+    mode: SessionMode  # Online/Offline
+    status: SessionStatus  # Sử dụng enum cho trạng thái
+    startTime: str  # Format: dd/mm/yyyy HH:MM
+    endTime: str  # Format: dd/mm/yyyy HH:MM
     maxParticipants: int
     resources: List[SessionResource] = []
     location: str
@@ -34,9 +45,9 @@ class Session(BaseModel):
 class CreateSession(BaseModel):
     tutor: str  # userID từ Profile
     topic: str
-    mode: str  # Online/Offline
-    startTime: str
-    endTime: str
+    mode: SessionMode  # Online/Offline
+    startTime: str  # Format: dd/mm/yyyy HH:MM
+    endTime: str  # Format: dd/mm/yyyy HH:MM
     maxParticipants: int
 
 class UpdateSession(BaseModel):

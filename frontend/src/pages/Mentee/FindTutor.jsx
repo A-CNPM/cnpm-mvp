@@ -257,13 +257,56 @@ function FindTutor() {
     setShowProfileModal(true);
   };
 
+  // --- HANDLER: Đăng ký Session ---
+  const handleRegisterSession = async (sessionID) => {
+    setRegisteringSession(sessionID);
+    try {
+      // Lấy username của mentee từ localStorage
+      const username = localStorage.getItem("username");
+      const result = await SessionService.registerSession(sessionID, username);
+      
+      if (result.success) {
+        alert(`Đăng ký thành công buổi tư vấn "${result.session.topic}"!`);
+        
+        // Refresh danh sách sessions để cập nhật số lượng participants
+        const criteria = { 
+            tutor_name: currentTutorName,
+            mode: scheduleMode || null,
+            status: "Đang mở đăng ký"
+        };
+        const data = await SearchService.searchSessions(criteria);
+        setTutorSessions(data);
+      } else {
+        alert(result.message || "Đăng ký thất bại!");
+      }
+      
+    } catch (error) {
+      console.error("Lỗi đăng ký session:", error);
+      
+      // Xử lý các loại lỗi khác nhau
+      let errorMessage = "Đăng ký thất bại. Vui lòng thử lại!";
+      
+      if (error.message.includes("full") || error.message.includes("đầy")) {
+        errorMessage = "Buổi tư vấn đã đầy. Vui lòng chọn buổi khác!";
+      } else if (error.message.includes("registered") || error.message.includes("đăng ký")) {
+        errorMessage = "Bạn đã đăng ký buổi tư vấn này rồi!";
+      } else if (error.message.includes("not found")) {
+        errorMessage = "Không tìm thấy buổi tư vấn này!";
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setRegisteringSession(null);
+    }
+  };
+
   return (
     <>
       <div className="mentee-dashboard">
         <main className="main-content">
           <div className="mentee-header">
             <h1 className="mentee-title">Mentee</h1>
-            <div className="mentee-email">mentee@hcmut.edu.vn</div>
+            <div className="mentee-email">b.levan@hcmut.edu.vn</div>
           </div>
           <h2 className="main-title">Tìm kiếm và lựa chọn Tutor</h2>
           
@@ -862,9 +905,11 @@ function FindTutor() {
                 marginBottom: "20px", 
                 background: "#f1f5f9", 
                 padding: "10px", 
-                borderRadius: "8px"
+                borderRadius: "8px",
+                alignItems: "center"
             }}>
                 <div style={{flex: 1}}>
+                    <label style={{fontSize: "12px", fontWeight: "bold", color: "#64748b", marginBottom: "4px", display: "block"}}>HÌNH THỨC</label>
                     <select 
                         value={scheduleMode}
                         onChange={(e) => setScheduleMode(e.target.value)}

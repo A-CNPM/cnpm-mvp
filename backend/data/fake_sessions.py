@@ -19,7 +19,7 @@ fake_sessions_db = {
                 "url": "https://drive.google.com/file1",
                 "uploadedBy": "a.nguyen",
                 "accessLevel": "Public",
-                "uploadDate": "2025-01-10T10:00:00"
+                "uploadDate": "10/01/2025 10:00"
             }
         ],
         "location": "www.meet.google.com/abc-xyz-123",

@@ -37,18 +37,30 @@ function Meeting() {
   const [filterMode, setFilterMode] = useState("");      // Giá trị: "", "Online", "Offline"
   const [filterStatus, setFilterStatus] = useState("");  // Giá trị: "", "Sắp diễn ra", ...
 
+  // Mentee ID hiện tại
+  const currentMenteeId = "b.levan";
+
+  // Hàm format thời gian session giống như trong FindTutor
+  const formatSessionTime = (session) => {
+    if (session.startTime && session.endTime) {
+      return `${session.startTime} - ${session.endTime.split(' ')[1]}`;
+    }
+    return session.time || "Chưa xác định";
+  };
+
   // --- HÀM HELPER: MÀU SẮC TRẠNG THÁI ---
   const getStatusStyles = (status) => {
     switch (status) {
       case "Hoàn thành":
-      case "Đã kết thúc":
         return { color: "#2dd4bf", bg: "#e6fcf7" }; // Xanh ngọc
       case "Đã hủy":
         return { color: "#f87171", bg: "#fff1f2" }; // Đỏ
       case "Sắp diễn ra":
+        return { color: "#f59e0b", bg: "#fef3c7" }; // Màu cam vàng
       case "Đang mở đăng ký":
-      default:
         return { color: "#a78bfa", bg: "#f3f0ff" }; // Tím
+      default:
+        return { color: "#64748b", bg: "#f1f5f9" }; // Xám
     }
   };
 
@@ -56,16 +68,16 @@ function Meeting() {
   const fetchSessions = async () => {
     setLoading(true);
     try {
-      // 1. Tạo tiêu chí tìm kiếm từ State
+      // 1. Tạo tiêu chí tìm kiếm từ State (lấy tất cả sessions)
       const criteria = {
         keyword: keyword,
         mode: filterMode || null,     // Nếu rỗng thì gửi null
-        status: filterStatus || null  // Nếu rỗng thì gửi null
+        status: filterStatus || null, // Nếu rỗng thì gửi null
       };
 
       console.log("Calling API with:", criteria);
 
-      // 2. Gọi Service
+      // 2. Gọi Service lấy tất cả sessions
       const data = await SearchService.searchSessions(criteria);
 
       // 3. Map dữ liệu từ Backend -> Frontend và lọc bỏ các session đã hoàn thành
@@ -256,6 +268,40 @@ function Meeting() {
 
   const handleSearch = () => {
     fetchSessions();
+  };
+
+  // --- HANDLER: Hủy đăng ký session ---
+  const handleCancelSession = async (sessionId, sessionTopic) => {
+    if (!confirm(`Bạn có chắc chắn muốn hủy đăng ký buổi tư vấn "${sessionTopic}"?`)) {
+      return;
+    }
+
+    setCancelingSession(sessionId);
+    try {
+      const result = await SessionService.cancelSession(sessionId, currentMenteeId);
+      
+      if (result.success) {
+        alert(`Hủy đăng ký thành công buổi tư vấn "${sessionTopic}"!`);
+        // Refresh danh sách để cập nhật
+        fetchSessions();
+      } else {
+        alert(result.message || "Hủy đăng ký thất bại!");
+      }
+    } catch (error) {
+      console.error("Lỗi hủy đăng ký:", error);
+      
+      let errorMessage = "Hủy đăng ký thất bại. Vui lòng thử lại!";
+      
+      if (error.message.includes("not registered")) {
+        errorMessage = "Bạn chưa đăng ký buổi tư vấn này!";
+      } else if (error.message.includes("not found")) {
+        errorMessage = "Không tìm thấy buổi tư vấn này!";
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setCancelingSession(null);
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -450,7 +496,7 @@ function Meeting() {
         <main className="main-content">
           <div className="mentee-header">
             <h1 className="mentee-title">Mentee</h1>
-            <div className="mentee-email">mentee@hcmut.edu.vn</div>
+            <div className="mentee-email">b.levan@hcmut.edu.vn</div>
           </div>
           <h2 className="main-title">Buổi tư vấn</h2>
 

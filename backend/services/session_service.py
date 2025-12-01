@@ -93,7 +93,7 @@ class SessionService:
         session_id = f"S{str(uuid.uuid4())[:6]}"
         session = data.dict()
         session["sessionID"] = session_id
-        session["status"] = "Khởi tạo"
+        session["status"] = "Đang mở đăng ký"
         session["participants"] = []
         session["resources"] = []
         fake_sessions_db[session_id] = session
@@ -275,7 +275,7 @@ class SessionService:
             
         # Đảm bảo session reference đúng
         resource_data["session"] = session_id
-        resource_data["uploadDate"] = datetime.now().isoformat()
+        resource_data["uploadDate"] = datetime.now().strftime("%d/%m/%Y %H:%M")
         
         # Nếu source là library, cần xác thực quyền truy cập HCMUT_LIBRARY (giả lập)
         if resource_data.get("source") == "library" and resource_data.get("libraryResourceId"):

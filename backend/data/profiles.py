@@ -3,7 +3,7 @@ fake_profiles_db = {
         "userID": "a.nguyen",
         "full_name": "Nguyen Van A",
         "email": "a.nguyen@hcmut.edu.vn",
-        "mssv": "2510000",
+        "mssv": "2210001",
         "khoa": "Khoa Khoa học và Kỹ thuật máy tính",
         "trinh_do": "Sinh viên",
         "nganh": "Khoa học máy tính",
